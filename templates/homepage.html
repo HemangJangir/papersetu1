@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PaperSetu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white shadow h-screen p-6 hidden md:block">
+        <h2 class="text-xl font-bold text-blue-700 mb-6">Dashboards</h2>
+        <ul class="space-y-4">
+            <li><a href="/dashboard/?view=chair" class="block text-gray-700 hover:text-blue-600">Chair Dashboard</a></li>
+            <li><a href="/dashboard/?view=author" class="block text-gray-700 hover:text-blue-600">Author Dashboard</a></li>
+            <li><a href="/dashboard/?view=reviewer" class="block text-gray-700 hover:text-blue-600">Reviewer Dashboard</a></li>
+            <li><a href="/conference/reviewer-volunteer/" class="block text-gray-700 hover:text-blue-600">For Being a Reviewer</a></li>
+        </ul>
+    </aside>
+    <!-- Main Content -->
+    <div class="flex-1">
+        <nav class="bg-white shadow mb-8 border-b border-gray-200">
+            <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+                <div class="text-2xl font-bold text-blue-700">PaperSetu</div>
+                <ul class="flex space-x-6">
+                    <li class="border-r border-gray-300 pr-4"><a href="#home" class="hover:text-blue-600">Home</a></li>
+                    <li class="border-r border-gray-300 pr-4"><a href="#about" class="hover:text-blue-600">About Us</a></li>
+                    <li class="border-r border-gray-300 pr-4"><a href="#for-conference" class="hover:text-blue-600">For Conference</a></li>
+                    <li class="border-r border-gray-300 pr-4"><a href="#contact" class="hover:text-blue-600">Contact Us</a></li>
+                    <li class="border-r border-gray-300 pr-4"><a href="/conference/create/" class="hover:text-blue-600">Create a Conference</a></li>
+                    {% if user.is_authenticated %}
+                        <li class="border-r border-gray-300 pr-4"><a href="/accounts/logout/" class="hover:text-blue-600">Logout</a></li>
+                        <li class="relative">
+                            <button id="profileBtn" class="focus:outline-none">
+                                <img src="https://ui-avatars.com/api/?name={{ user.get_full_name|default:user.username }}" alt="Profile" class="w-8 h-8 rounded-full border border-gray-300">
+                            </button>
+                            <div id="profileDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg z-50">
+                                <div class="px-4 py-2 border-b border-gray-100">
+                                    <div class="font-semibold">{{ user.get_full_name|default:user.username }}</div>
+                                    <div class="text-xs text-gray-500">{{ user.email }}</div>
+                                </div>
+                                <a href="/accounts/settings/" class="block px-4 py-2 hover:bg-gray-100">Settings</a>
+                            </div>
+                        </li>
+                    {% else %}
+                        <li><a href="/accounts/login/" class="hover:text-blue-600">Login</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </nav>
+        <main class="container mx-auto px-4">
+            <section id="home" class="bg-white rounded-lg shadow p-8 mt-8 mb-8">
+                <h1 class="text-3xl font-bold mb-4 text-blue-700">Welcome to PaperSetu</h1>
+                <p class="text-lg text-gray-700 mb-2">
+                    Our platform streamlines academic conference submissions and peer reviews. Organize conferences, manage submissions, invite reviewers, and track paper decisions—all in one place.
+                </p>
+                <ul class="list-disc ml-8 text-gray-600">
+                    <li>Easy conference creation and management for chairs</li>
+                    <li>Unified dashboard for authors, reviewers, and chairs</li>
+                    <li>Secure registration and OTP-based verification</li>
+                    <li>Reviewer volunteering and invitation system</li>
+                    <li>Transparent paper review and decision workflow</li>
+                </ul>
+            </section>
+            <section id="about" class="bg-white rounded-lg shadow p-8 mb-8">
+                <h2 class="text-2xl font-bold mb-4 text-blue-700">About Us</h2>
+                <p class="text-gray-700">PaperSetu is dedicated to simplifying the management of academic conferences. Our mission is to provide a seamless experience for conference chairs, authors, and reviewers, ensuring fair and efficient peer review and conference organization.</p>
+            </section>
+            <section id="for-conference" class="bg-white rounded-lg shadow p-8 mb-8">
+                <h2 class="text-2xl font-bold mb-4 text-blue-700">For Conference</h2>
+                <p class="text-gray-700">Chairs can create and manage conferences, invite reviewers, and track submissions. Authors can join conferences and submit papers. Reviewers can volunteer and be invited to review papers, ensuring a robust peer review process.</p>
+            </section>
+            <section id="contact" class="bg-white rounded-lg shadow p-8 mb-8">
+                <h2 class="text-2xl font-bold mb-4 text-blue-700">Contact Us</h2>
+                <p class="text-gray-700">For support or inquiries, email us at <a href="mailto:support@papersetu.com" class="text-blue-600 underline">support@papersetu.com</a>.</p>
+            </section>
+        </main>
+    </div>
+    <script>
+    // Profile dropdown logic
+    const profileBtn = document.getElementById('profileBtn');
+    const profileDropdown = document.getElementById('profileDropdown');
+    if(profileBtn && profileDropdown) {
+        profileBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            profileDropdown.classList.toggle('hidden');
+        });
+        document.addEventListener('click', function() {
+            profileDropdown.classList.add('hidden');
+        });
+    }
+    </script>
+</body>
+</html> 

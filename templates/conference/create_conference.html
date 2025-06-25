@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Conference - PaperSetu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-8 rounded shadow-md w-full max-w-lg">
+        <h2 class="text-2xl font-bold mb-6 text-blue-700">Create a Conference</h2>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            <div class="mb-4">
+                <label class="block mb-1">Conference Name</label>
+                {{ form.name }}
+                {{ form.name.errors }}
+            </div>
+            <div class="mb-4">
+                <label class="block mb-1">Theme/Domain</label>
+                <select name="domain" id="id_domain" class="border rounded px-2 py-1 w-full">
+                    <option value="">Select Domain</option>
+                    <option value="Computer Science">Computer Science</option>
+                    <option value="Physics">Physics</option>
+                    <option value="Mathematics">Mathematics</option>
+                    <option value="Biology">Biology</option>
+                    <option value="Chemistry">Chemistry</option>
+                    <option value="Engineering">Engineering</option>
+                    <option value="Medicine">Medicine</option>
+                    <option value="Economics">Economics</option>
+                    <option value="Psychology">Psychology</option>
+                    <option value="Social Sciences">Social Sciences</option>
+                    <option value="Other">Other</option>
+                </select>
+                <input type="text" name="custom_domain" id="custom_domain_input" class="border rounded px-2 py-1 w-full mt-2" style="display:none;" placeholder="Enter custom domain">
+                {{ form.domain.errors }}
+            </div>
+            <div class="mb-4">
+                <label class="block mb-1">Description</label>
+                {{ form.description }}
+                {{ form.description.errors }}
+            </div>
+            <div class="mb-4">
+                <label class="block mb-1">Start Date</label>
+                <input type="date" name="start_date" id="id_start_date" class="border rounded px-2 py-1 w-full" value="{{ form.start_date.value|default:'' }}">
+                {{ form.start_date.errors }}
+            </div>
+            <div class="mb-4">
+                <label class="block mb-1">End Date</label>
+                <input type="date" name="end_date" id="id_end_date" class="border rounded px-2 py-1 w-full" value="{{ form.end_date.value|default:'' }}">
+                {{ form.end_date.errors }}
+            </div>
+            <div class="mb-4">
+                <label class="block mb-1">Paper Submission Deadline</label>
+                <input type="date" name="paper_submission_deadline" id="id_paper_submission_deadline" class="border rounded px-2 py-1 w-full" value="{{ form.paper_submission_deadline.value|default:'' }}">
+                {{ form.paper_submission_deadline.errors }}
+            </div>
+            <div class="mb-4">
+                <label class="block mb-1">Paper Format</label>
+                {{ form.paper_format }}
+                {{ form.paper_format.errors }}
+            </div>
+            <div class="mb-4">
+                <label class="block mb-1">Registration Fee</label>
+                {{ form.registration_fee }}
+                {{ form.registration_fee.errors }}
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Create</button>
+        </form>
+    </div>
+    <script>
+    // Show custom domain input if 'Other' is selected
+    const domainSelect = document.getElementById('id_domain');
+    const customDomainInput = document.getElementById('custom_domain_input');
+    domainSelect.addEventListener('change', function() {
+        if (this.value === 'Other') {
+            customDomainInput.style.display = 'block';
+            customDomainInput.name = 'domain';
+            domainSelect.name = 'domain_dropdown';
+        } else {
+            customDomainInput.style.display = 'none';
+            customDomainInput.name = 'custom_domain';
+            domainSelect.name = 'domain';
+        }
+    });
+    </script>
+</body>
+</html> 
