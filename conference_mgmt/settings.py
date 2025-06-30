@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'widget_tweaks',
     'accounts',
     'conference',
     'dashboard',
@@ -92,8 +93,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'ramsharma1399@gmail.com'  # <-- Replace with your Gmail address
-EMAIL_HOST_PASSWORD = 'hhlg uxla xuap klry'  # <-- Replace with your Gmail app password
+EMAIL_HOST_USER = 'papersetu@gmail.com'  # <-- Replace with your Gmail address
+EMAIL_HOST_PASSWORD = 'unhh ovcr cqri wxwr'  # <-- Replace with your Gmail app password
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

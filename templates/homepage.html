@@ -3,92 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PaperSetu</title>
+    <title>PaperSetu Home</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50 min-h-screen flex">
-    <!-- Sidebar -->
-    <aside class="w-64 bg-white shadow h-screen p-6 hidden md:block">
-        <h2 class="text-xl font-bold text-blue-700 mb-6">Dashboards</h2>
-        <ul class="space-y-4">
-            <li><a href="/dashboard/?view=chair" class="block text-gray-700 hover:text-blue-600">Chair Dashboard</a></li>
-            <li><a href="/dashboard/?view=author" class="block text-gray-700 hover:text-blue-600">Author Dashboard</a></li>
-            <li><a href="/dashboard/?view=reviewer" class="block text-gray-700 hover:text-blue-600">Reviewer Dashboard</a></li>
-            <li><a href="/conference/reviewer-volunteer/" class="block text-gray-700 hover:text-blue-600">For Being a Reviewer</a></li>
-        </ul>
-    </aside>
-    <!-- Main Content -->
-    <div class="flex-1">
-        <nav class="bg-white shadow mb-8 border-b border-gray-200">
-            <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-                <div class="text-2xl font-bold text-blue-700">PaperSetu</div>
-                <ul class="flex space-x-6">
-                    <li class="border-r border-gray-300 pr-4"><a href="#home" class="hover:text-blue-600">Home</a></li>
-                    <li class="border-r border-gray-300 pr-4"><a href="#about" class="hover:text-blue-600">About Us</a></li>
-                    <li class="border-r border-gray-300 pr-4"><a href="#for-conference" class="hover:text-blue-600">For Conference</a></li>
-                    <li class="border-r border-gray-300 pr-4"><a href="#contact" class="hover:text-blue-600">Contact Us</a></li>
-                    <li class="border-r border-gray-300 pr-4"><a href="/conference/create/" class="hover:text-blue-600">Create a Conference</a></li>
-                    {% if user.is_authenticated %}
-                        <li class="border-r border-gray-300 pr-4"><a href="/accounts/logout/" class="hover:text-blue-600">Logout</a></li>
-                        <li class="relative">
-                            <button id="profileBtn" class="focus:outline-none">
-                                <img src="https://ui-avatars.com/api/?name={{ user.get_full_name|default:user.username }}" alt="Profile" class="w-8 h-8 rounded-full border border-gray-300">
-                            </button>
-                            <div id="profileDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg z-50">
-                                <div class="px-4 py-2 border-b border-gray-100">
-                                    <div class="font-semibold">{{ user.get_full_name|default:user.username }}</div>
-                                    <div class="text-xs text-gray-500">{{ user.email }}</div>
-                                </div>
-                                <a href="/accounts/settings/" class="block px-4 py-2 hover:bg-gray-100">Settings</a>
-                            </div>
+<body class="bg-blue-50 min-h-screen flex flex-col">
+    <div class="flex flex-1">
+        <!-- Sidebar and Overlay -->
+        <div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-40 z-30 hidden"></div>
+        <aside id="sidebar" class="w-64 bg-white shadow h-screen p-6 fixed z-40 top-0 left-0 transform -translate-x-full transition-transform duration-300 ease-in-out">
+            <h2 class="text-xl font-bold text-blue-700 mb-6">Dashboards</h2>
+            <ul class="space-y-4">
+                <li><a href="/dashboard/?view=chair" class="block text-gray-700 hover:text-blue-600">Chair Dashboard</a></li>
+                <li><a href="/dashboard/?view=author" class="block text-gray-700 hover:text-blue-600">Author Dashboard</a></li>
+                <li><a href="/dashboard/?view=reviewer" class="block text-gray-700 hover:text-blue-600">Reviewer Dashboard</a></li>
+                <li><a href="/conference/reviewer-volunteer/" class="block text-gray-700 hover:text-blue-600">For Being a Reviewer</a></li>
+            </ul>
+        </aside>
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col items-center justify-center">
+            <nav class="bg-white shadow mb-8 border-b border-gray-200 sticky top-0 z-30 w-full">
+                <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <button id="sidebarToggle" class="focus:outline-none mr-2">
+                            <svg class="w-8 h-8 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                        </button>
+                        <svg class="w-24 h-auto mr-2" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Paper icon -->
+                            <rect x="5" y="10" width="15" height="20" fill="#1e40af" rx="2"/>
+                            <line x1="8" y1="15" x2="17" y2="15" stroke="white" stroke-width="1"/>
+                            <line x1="8" y1="18" x2="17" y2="18" stroke="white" stroke-width="1"/>
+                            <line x1="8" y1="21" x2="17" y2="21" stroke="white" stroke-width="1"/>
+                            <line x1="8" y1="24" x2="14" y2="24" stroke="white" stroke-width="1"/>
+                            <!-- Text -->
+                            <text x="25" y="25" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#1e40af">PaperSetu</text>
+                        </svg>
+                    </div>
+                    <ul class="flex space-x-6">
+                        <li class="border-r border-gray-300 pr-4"><a href="#features" class="hover:text-blue-600">Features</a></li>
+                        <li><a href="/accounts/logout/" class="hover:text-blue-600">Logout</a></li>
+                    </ul>
+                </div>
+            </nav>
+            <main class="container mx-auto px-4 flex-1 flex flex-col items-center justify-center w-full">
+                <!-- Welcome Section (Hero) -->
+                <section id="welcome" class="bg-white rounded-lg shadow p-8 mt-8 mb-8 flex flex-col md:flex-row items-center justify-center w-full max-w-7xl mx-auto">
+                    <div class="md:w-1/2 mb-8 md:mb-0 flex flex-col items-center justify-center">
+                        <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-blue-700 leading-tight text-center">Welcome{% if user.is_authenticated %}, <span class="block text-5xl md:text-6xl text-blue-900 mt-2">{{ user.get_full_name|default:user.username }}</span>{% endif %} to PaperSetu</h1>
+                        <p class="text-lg text-gray-700 mb-6 text-center">Your unified platform for academic conference management, submissions, and peer review.</p>
+                    </div>
+                    <div class="md:w-1/2 flex justify-center">
+                        <img src="https://images.pexels.com/photos/2305084/pexels-photo-2305084.jpeg" alt="Hero Visual" class="w-120 max-w-full rounded-xl shadow-lg border border-blue-100">
+                    </div>
+                </section>
+                <!-- Dashboard Info Section -->
+                <section id="dashboard-info" class="bg-blue-100 rounded-lg shadow p-8 mb-8 w-full max-w-7xl mx-auto text-center">
+                    <h2 class="text-2xl md:text-3xl font-bold mb-4 text-blue-700">Where are the Dashboards?</h2>
+                    <p class="text-lg text-gray-700 mb-4">All your dashboards are accessible from the sidebar (click the <span class="inline-block align-middle"><svg class="w-6 h-6 inline text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg></span> menu button at the top left).<br>Choose between Chair, Author, and Reviewer dashboards to manage conferences, submit papers, review assignments, and more!</p>
+                    <ul class="flex flex-col md:flex-row justify-center gap-8 mt-6">
+                        <li class="flex-1 bg-white rounded-lg shadow p-6 border border-blue-200">
+                            <h3 class="text-xl font-semibold text-blue-800 mb-2">Chair Dashboard</h3>
+                            <p class="text-gray-600">Create and manage conferences, assign reviewers, and oversee the review process.</p>
                         </li>
-                    {% else %}
-                        <li><a href="/accounts/login/" class="hover:text-blue-600">Login</a></li>
-                    {% endif %}
-                </ul>
-            </div>
-        </nav>
-        <main class="container mx-auto px-4">
-            <section id="home" class="bg-white rounded-lg shadow p-8 mt-8 mb-8">
-                <h1 class="text-3xl font-bold mb-4 text-blue-700">Welcome to PaperSetu</h1>
-                <p class="text-lg text-gray-700 mb-2">
-                    Our platform streamlines academic conference submissions and peer reviews. Organize conferences, manage submissions, invite reviewers, and track paper decisions—all in one place.
-                </p>
-                <ul class="list-disc ml-8 text-gray-600">
-                    <li>Easy conference creation and management for chairs</li>
-                    <li>Unified dashboard for authors, reviewers, and chairs</li>
-                    <li>Secure registration and OTP-based verification</li>
-                    <li>Reviewer volunteering and invitation system</li>
-                    <li>Transparent paper review and decision workflow</li>
-                </ul>
-            </section>
-            <section id="about" class="bg-white rounded-lg shadow p-8 mb-8">
-                <h2 class="text-2xl font-bold mb-4 text-blue-700">About Us</h2>
-                <p class="text-gray-700">PaperSetu is dedicated to simplifying the management of academic conferences. Our mission is to provide a seamless experience for conference chairs, authors, and reviewers, ensuring fair and efficient peer review and conference organization.</p>
-            </section>
-            <section id="for-conference" class="bg-white rounded-lg shadow p-8 mb-8">
-                <h2 class="text-2xl font-bold mb-4 text-blue-700">For Conference</h2>
-                <p class="text-gray-700">Chairs can create and manage conferences, invite reviewers, and track submissions. Authors can join conferences and submit papers. Reviewers can volunteer and be invited to review papers, ensuring a robust peer review process.</p>
-            </section>
-            <section id="contact" class="bg-white rounded-lg shadow p-8 mb-8">
-                <h2 class="text-2xl font-bold mb-4 text-blue-700">Contact Us</h2>
-                <p class="text-gray-700">For support or inquiries, email us at <a href="mailto:support@papersetu.com" class="text-blue-600 underline">support@papersetu.com</a>.</p>
-            </section>
-        </main>
+                        <li class="flex-1 bg-white rounded-lg shadow p-6 border border-blue-200">
+                            <h3 class="text-xl font-semibold text-blue-800 mb-2">Author Dashboard</h3>
+                            <p class="text-gray-600">Submit papers, track submission status, and view reviews and decisions.</p>
+                        </li>
+                        <li class="flex-1 bg-white rounded-lg shadow p-6 border border-blue-200">
+                            <h3 class="text-xl font-semibold text-blue-800 mb-2">Reviewer Dashboard</h3>
+                            <p class="text-gray-600">Accept invitations, review assigned papers, and provide feedback.</p>
+                        </li>
+                    </ul>
+                </section>
+                <!-- Features/Services Section -->
+                <section id="features" class="bg-white rounded-lg shadow p-8 mb-8 w-full max-w-7xl mx-auto text-center">
+                    <h2 class="text-2xl font-bold mb-4 text-blue-700">Features & Services</h2>
+                    <ul class="list-disc ml-8 text-gray-600 inline-block text-left">
+                        <li>Easy conference creation and management for chairs</li>
+                        <li>Unified dashboard for authors, reviewers, and chairs</li>
+                        <li>Secure registration and OTP-based verification</li>
+                        <li>Reviewer volunteering and invitation system</li>
+                        <li>Transparent paper review and decision workflow</li>
+                    </ul>
+                </section>
+            </main>
+            <!-- Footer -->
+            <footer class="bg-blue-700 text-white py-6 mt-8 w-full">
+                <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center px-4">
+                    <div class="mb-4 md:mb-0">
+                        <span class="font-bold text-lg">PaperSetu</span> &copy; {{ now|date:'Y' }}
+                    </div>
+                    <div class="flex space-x-6">
+                        <a href="#features" class="hover:underline">Features</a>
+                        <a href="mailto:support@papersetu.com" class="hover:underline">Support</a>
+                    </div>
+                </div>
+            </footer>
+        </div>
     </div>
     <script>
-    // Profile dropdown logic
-    const profileBtn = document.getElementById('profileBtn');
-    const profileDropdown = document.getElementById('profileDropdown');
-    if(profileBtn && profileDropdown) {
-        profileBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            profileDropdown.classList.toggle('hidden');
-        });
-        document.addEventListener('click', function() {
-            profileDropdown.classList.add('hidden');
-        });
+    // Sidebar toggle logic
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    function openSidebar() {
+        sidebar.classList.remove('-translate-x-full');
+        sidebarOverlay.classList.remove('hidden');
     }
+    function closeSidebar() {
+        sidebar.classList.add('-translate-x-full');
+        sidebarOverlay.classList.add('hidden');
+    }
+    sidebarToggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        openSidebar();
+    });
+    sidebarOverlay.addEventListener('click', function() {
+        closeSidebar();
+    });
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeSidebar();
+    });
     </script>
 </body>
 </html> 

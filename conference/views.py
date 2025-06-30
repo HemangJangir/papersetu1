@@ -19,11 +19,7 @@ def create_conference(request):
             conference.save()
             UserConferenceRole.objects.create(user=request.user, conference=conference, role='chair')
             messages.success(request, 'Conference created successfully!')
-            referer = request.META.get('HTTP_REFERER', '')
-            if '/dashboard' in referer:
-                return redirect('dashboard:dashboard')
-            else:
-                return redirect('/')
+            return redirect('dashboard:dashboard')
         else:
             print('Conference form errors:', form.errors)
     else:

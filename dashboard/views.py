@@ -45,13 +45,16 @@ def dashboard(request):
     # Reviewer context
     reviewer_invites = ReviewInvite.objects.filter(reviewer=user, status='pending')
     reviewing_confs = Conference.objects.filter(review_invites__reviewer=user, review_invites__status='accepted').distinct()
-    assigned_papers = Paper.objects.filter(reviews__reviewer=user, reviews__decision__in=['accept', 'reject'])
+    
+    # Get papers specifically assigned to this reviewer (papers with Review objects created for this reviewer)
+    assigned_papers = Paper.objects.filter(reviews__reviewer=user)
     reviewer_notifications = reviewer_invites
     
-    # Get papers assigned to this reviewer (papers in conferences where reviewer is accepted)
+    # Get papers that have been assigned to this reviewer but haven't been reviewed yet
     assigned_paper_ids = []
     for conf in reviewing_confs:
-        conf_papers = conf.papers.all()
+        # Get papers in this conference that have been assigned to this reviewer
+        conf_papers = conf.papers.filter(reviews__reviewer=user)
         for paper in conf_papers:
             # Check if reviewer has already submitted a review for this paper
             if not Review.objects.filter(paper=paper, reviewer=user, decision__in=['accept', 'reject']).exists():
@@ -244,6 +247,16 @@ def chair_conference_detail(request, conf_id):
         review_invites__conference=conference
     )
     
+    # Search functionality for reviewers
+    search_query = request.GET.get('search', '')
+    if search_query:
+        available_reviewers = available_reviewers.filter(
+            Q(first_name__icontains=search_query) | 
+            Q(last_name__icontains=search_query) | 
+            Q(username__icontains=search_query) |
+            Q(email__icontains=search_query)
+        )
+    
     assign_message = ''
     invite_message = ''
     
@@ -258,7 +271,17 @@ def chair_conference_detail(request, conf_id):
                 reviewer = User.objects.get(username=reviewer_username)
                 # Only assign if reviewer is accepted for this conference
                 if ReviewInvite.objects.filter(conference=conference, reviewer=reviewer, status='accepted').exists():
-                    assign_message = f"Assigned {reviewer.username} to paper '{paper.title}'."
+                    # Create or get Review object to assign the paper to reviewer
+                    review, created = Review.objects.get_or_create(
+                        paper=paper,
+                        reviewer=reviewer,
+                        defaults={'decision': None}  # None means not reviewed yet
+                    )
+                    
+                    if created:
+                        assign_message = f"Assigned {reviewer.username} to paper '{paper.title}'."
+                    else:
+                        assign_message = f"{reviewer.username} was already assigned to paper '{paper.title}'."
                     
                     # Create notification for reviewer
                     Notification.objects.create(
@@ -315,13 +338,14 @@ def chair_conference_detail(request, conf_id):
         'assign_message': assign_message,
         'invite_message': invite_message,
         'invite_url': invite_url,
+        'search_query': search_query,
     }
     return render(request, 'dashboard/chair_conference_detail.html', context)
 
 @require_POST
 @login_required
 def paper_review_respond(request, review_id):
-    review = get_object_or_404(Review, id=review_id, reviewer=request.user, decision='')
+    review = get_object_or_404(Review, id=review_id, reviewer=request.user, decision__isnull=True)
     response = request.POST.get('response')
     if response == 'accept':
         # Reviewer accepts assignment, do nothing (keep Review object)
@@ -342,34 +366,59 @@ def mark_notification_read(request, notification_id):
 @login_required
 def bulk_assign_papers(request):
     user = request.user
-    if not hasattr(user, 'chaired_conferences'):
+    # Check if user is a chair
+    chaired_confs = Conference.objects.filter(chair=user)
+    if not chaired_confs.exists():
+        messages.error(request, 'You are not authorized to assign papers.')
         return redirect('dashboard:dashboard')
+    
     paper_ids = request.POST.getlist('papers')
     reviewer_ids = request.POST.getlist('reviewers')
+    
     if not paper_ids or not reviewer_ids:
         messages.error(request, 'Please select at least one paper and one reviewer.')
         return redirect('dashboard:dashboard')
-    papers = Paper.objects.filter(id__in=paper_ids)
+    
+    papers = Paper.objects.filter(id__in=paper_ids, conference__chair=user)
     reviewers = User.objects.filter(id__in=reviewer_ids)
+    
     assigned_count = 0
+    errors = []
+    
     for paper in papers:
         for reviewer in reviewers:
-            # Only assign if reviewer is accepted for this conference
-            invite, created = ReviewInvite.objects.get_or_create(
-                conference=paper.conference,
-                reviewer=reviewer,
-                defaults={'status': 'accepted'}
-            )
-            if invite.status == 'accepted':
-                assigned_count += 1
-                # Notify reviewer
-                Notification.objects.create(
-                    recipient=reviewer,
-                    notification_type='paper_assignment',
-                    title=f'Paper Assignment',
-                    message=f'You have been assigned to review the paper "{paper.title}" for {paper.conference.name}.',
-                    related_paper=paper,
-                    related_conference=paper.conference
-                )
-    messages.success(request, f'Assigned {assigned_count} paper-reviewer pairs successfully!')
+            # Check if reviewer is accepted for this specific conference
+            try:
+                invite = ReviewInvite.objects.get(conference=paper.conference, reviewer=reviewer)
+                if invite.status == 'accepted':
+                    # Create Review object to assign the paper to reviewer
+                    review, review_created = Review.objects.get_or_create(
+                        paper=paper,
+                        reviewer=reviewer,
+                        defaults={'decision': None}  # None means not reviewed yet
+                    )
+                    
+                    if review_created:
+                        assigned_count += 1
+                        # Notify reviewer
+                        Notification.objects.create(
+                            recipient=reviewer,
+                            notification_type='paper_assignment',
+                            title=f'Paper Assignment',
+                            message=f'You have been assigned to review the paper "{paper.title}" for {paper.conference.name}.',
+                            related_paper=paper,
+                            related_conference=paper.conference
+                        )
+                    else:
+                        errors.append(f"{reviewer.username} was already assigned to paper '{paper.title}'")
+                else:
+                    errors.append(f"{reviewer.username} has not accepted the invitation for {paper.conference.name}")
+            except ReviewInvite.DoesNotExist:
+                errors.append(f"{reviewer.username} has not been invited to {paper.conference.name}")
+    
+    if assigned_count > 0:
+        messages.success(request, f'Successfully assigned {assigned_count} paper-reviewer pairs!')
+    if errors:
+        messages.warning(request, f'Some assignments failed: {", ".join(errors[:3])}{"..." if len(errors) > 3 else ""}')
+    
     return redirect('dashboard:dashboard') 

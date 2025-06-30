@@ -9,9 +9,20 @@
 <body class="bg-gray-50 min-h-screen">
     <nav class="bg-white shadow mb-8 border-b border-gray-200">
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div class="text-2xl font-bold text-blue-700">PaperSetu</div>
+            <div class="text-2xl font-bold text-blue-700">
+                <svg class="w-24 h-auto mr-2 inline" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Paper icon -->
+                    <rect x="5" y="10" width="15" height="20" fill="#1e40af" rx="2"/>
+                    <line x1="8" y1="15" x2="17" y2="15" stroke="white" stroke-width="1"/>
+                    <line x1="8" y1="18" x2="17" y2="18" stroke="white" stroke-width="1"/>
+                    <line x1="8" y1="21" x2="17" y2="21" stroke="white" stroke-width="1"/>
+                    <line x1="8" y1="24" x2="14" y2="24" stroke="white" stroke-width="1"/>
+                    <!-- Text -->
+                    <text x="25" y="25" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#1e40af">PaperSetu</text>
+                </svg>
+            </div>
             <ul class="flex space-x-6">
-                <li class="border-r border-gray-300 pr-4"><a href="/dashboard/" class="hover:text-blue-600">Dashboard</a></li>
+                <li class="border-r border-gray-300 pr-4"><a href="/home/" class="hover:text-blue-600">Home</a></li>
                 {% if user.is_authenticated %}
                     <li class="border-r border-gray-300 pr-4"><a href="/accounts/logout/">Logout</a></li>
                     <li class="relative">
@@ -149,6 +160,16 @@
         <section class="mb-8">
             <h2 class="text-xl font-bold mb-4">Invite Reviewers</h2>
             <div class="bg-white rounded shadow p-6">
+                <!-- Search Form -->
+                <form method="get" class="mb-4 flex space-x-2">
+                    <input type="text" name="search" value="{{ search_query }}" placeholder="Search reviewers by name, username, or email..." class="border rounded px-3 py-2 flex-1">
+                    <button type="submit" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Search</button>
+                    {% if search_query %}
+                        <a href="?search=" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Clear</a>
+                    {% endif %}
+                </form>
+                
+                <!-- Invite Form -->
                 <form method="post" class="flex space-x-2">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="invite_reviewer">
@@ -162,22 +183,22 @@
                     </select>
                     <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Invite Reviewer</button>
                 </form>
-                {% if available_reviewers %}
+                
+                {% if search_query %}
+                    <p class="text-sm text-gray-600 mt-2">Showing {{ available_reviewers.count }} reviewer(s) matching "{{ search_query }}".</p>
+                {% elif available_reviewers %}
                     <p class="text-sm text-gray-600 mt-2">Select a reviewer from the list above to invite them to review papers for this conference.</p>
                 {% else %}
-                    <p class="text-sm text-gray-600 mt-2">No available reviewers to invite. All reviewers have already been invited or are already part of this conference.</p>
+                    <p class="text-sm text-gray-600 mt-2">No available reviewers found. All reviewers have already been invited or are already part of this conference.</p>
                 {% endif %}
             </div>
         </section>
 
-        <!-- Papers Table -->
+        <!-- Assign Papers to Reviewers Section -->
         <section class="mb-8">
-            <h2 class="text-xl font-bold mb-4">Submitted Papers</h2>
-            
-            <!-- Bulk Assignment Section -->
-            <div class="bg-white rounded shadow p-6 mb-6">
-                <h3 class="text-lg font-semibold mb-4">Bulk Paper Assignment</h3>
-                <form id="bulkAssignForm" method="post" action="/dashboard/chair/conference/{{ conference.id }}/bulk-assign/">
+            <h2 class="text-xl font-bold mb-4">Assign Papers to Accepted Reviewers</h2>
+            <div class="bg-white rounded shadow p-6">
+                <form method="post" action="{% url 'dashboard:bulk_assign_papers' %}" id="bulkAssignForm">
                     {% csrf_token %}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -189,14 +210,14 @@
                                 </label>
                                 {% for paper in papers %}
                                     <label class="flex items-center">
-                                        <input type="checkbox" name="paper_ids" value="{{ paper.id }}" class="paper-checkbox rounded border-gray-300">
+                                        <input type="checkbox" name="papers" value="{{ paper.id }}" class="paper-checkbox rounded border-gray-300">
                                         <span class="ml-2 text-sm">{{ paper.title }}</span>
                                     </label>
                                 {% endfor %}
                             </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Select Reviewers:</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Select Accepted Reviewers:</label>
                             <div class="space-y-2 max-h-40 overflow-y-auto border rounded p-2">
                                 <label class="flex items-center">
                                     <input type="checkbox" id="selectAllReviewers" class="rounded border-gray-300">
@@ -205,8 +226,8 @@
                                 {% for invite in review_invites %}
                                     {% if invite.status == 'accepted' %}
                                         <label class="flex items-center">
-                                            <input type="checkbox" name="reviewer_ids" value="{{ invite.reviewer.id }}" class="reviewer-checkbox rounded border-gray-300">
-                                            <span class="ml-2 text-sm">{{ invite.reviewer.get_full_name|default:invite.reviewer.username }}</span>
+                                            <input type="checkbox" name="reviewers" value="{{ invite.reviewer.id }}" class="reviewer-checkbox rounded border-gray-300">
+                                            <span class="ml-2 text-sm">{{ invite.reviewer.get_full_name|default:invite.reviewer.username }} ({{ invite.reviewer.reviewer_profile.expertise }})</span>
                                         </label>
                                     {% endif %}
                                 {% endfor %}
@@ -218,6 +239,11 @@
                     </div>
                 </form>
             </div>
+        </section>
+
+        <!-- Papers Table -->
+        <section class="mb-8">
+            <h2 class="text-xl font-bold mb-4">Submitted Papers</h2>
             
             <div class="overflow-x-auto">
                 <table class="min-w-full bg-white rounded shadow">
@@ -412,40 +438,16 @@
     const bulkAssignForm = document.getElementById('bulkAssignForm');
     if (bulkAssignForm) {
         bulkAssignForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
             const selectedPapers = Array.from(paperCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
             const selectedReviewers = Array.from(reviewerCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
             
             if (selectedPapers.length === 0 || selectedReviewers.length === 0) {
+                e.preventDefault();
                 alert('Please select at least one paper and one reviewer.');
                 return;
             }
             
-            const formData = new FormData();
-            selectedPapers.forEach(paperId => formData.append('paper_ids[]', paperId));
-            selectedReviewers.forEach(reviewerId => formData.append('reviewer_ids[]', reviewerId));
-            
-            fetch(this.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-                },
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    alert(data.message);
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while assigning papers.');
-            });
+            // Form will submit normally with the selected values
         });
     }
     </script>
