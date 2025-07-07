@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from conference.models import Conference, ReviewerPool, ReviewInvite, UserConferenceRole, Paper, Review, User, Notification
+from conference.models import Conference, ReviewerPool, ReviewInvite, UserConferenceRole, Paper, Review, User, Notification, PCInvite
 from django.db.models import Count, Q
 from django.views.decorators.http import require_POST
 from django.http import HttpResponseRedirect, JsonResponse
@@ -8,6 +8,11 @@ from django.urls import reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings
+from django.utils.crypto import get_random_string
 
 @login_required
 def dashboard(request):
@@ -429,4 +434,170 @@ def bulk_assign_papers(request):
     if errors:
         messages.warning(request, f'Some assignments failed: {", ".join(errors[:3])}{"..." if len(errors) > 3 else ""}')
     
-    return redirect('dashboard:dashboard') 
+    return redirect('dashboard:dashboard')
+
+@login_required
+def pc_conference_detail(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    user = request.user
+    # Check if user is a pc_member for this conference
+    is_pc_member = UserConferenceRole.objects.filter(user=user, conference=conference, role='pc_member').exists()
+    if not is_pc_member:
+        return render(request, 'dashboard/forbidden.html', {'message': 'You are not a PC member for this conference.'})
+    # Get submissions and reviews for this conference
+    submissions = Paper.objects.filter(conference=conference)
+    reviews = Review.objects.filter(paper__conference=conference)
+    nav_items = [
+        {'label': 'Submissions', 'url': '#'},
+        {'label': 'Reviews', 'url': '#'},
+        {'label': 'Status', 'url': '#'},
+        {'label': 'Events', 'url': '#'},
+        {'label': 'Conference', 'url': '#'},
+        {'label': 'News', 'url': '#'},
+    ]
+    context = {
+        'conference': conference,
+        'submissions': submissions,
+        'reviews': reviews,
+        'nav_items': nav_items,
+    }
+    return render(request, 'dashboard/pc_conference_detail.html', context)
+
+@login_required
+def pc_list(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    if not (conference.chair == request.user or UserConferenceRole.objects.filter(user=request.user, conference=conference, role='pc_member').exists()):
+        return render(request, 'dashboard/forbidden.html', {'message': 'You do not have permission.'})
+    pc_members = UserConferenceRole.objects.filter(conference=conference, role='pc_member').select_related('user')
+    context = {'conference': conference, 'pc_members': pc_members}
+    return render(request, 'dashboard/pc_list.html', context)
+
+@login_required
+def pc_invite(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    if conference.chair != request.user:
+        return render(request, 'dashboard/forbidden.html', {'message': 'Only the chair can invite PC members.'})
+    message = ''
+    mail_preview = None
+    if request.method == 'POST':
+        # Bulk invite
+        if 'bulk_invite' in request.POST and request.POST['bulk_invite'].strip():
+            lines = request.POST['bulk_invite'].strip().splitlines()
+            sent_count = 0
+            for line in lines:
+                parts = [p.strip() for p in line.replace('\t', ',').split(',')]
+                if len(parts) == 2:
+                    name, email = parts
+                    if not email or not name:
+                        continue
+                    User = get_user_model()
+                    user = User.objects.filter(email=email).first()
+                    if user and UserConferenceRole.objects.filter(user=user, conference=conference, role='pc_member').exists():
+                        continue
+                    elif PCInvite.objects.filter(conference=conference, email=email, status='pending').exists():
+                        continue
+                    else:
+                        token = get_random_string(48)
+                        invite = PCInvite.objects.create(conference=conference, email=email, name=name, invited_by=request.user, token=token)
+                        invite_url = request.build_absolute_uri(reverse('dashboard:pc_invite_accept', args=[invite.token]))
+                        mail_subject = f"Invitation to join PC for {conference.name}"
+                        mail_body = f"""
+Dear {name},
+
+You have been invited to join the Program Committee (PC) for the conference '{conference.name}'.
+
+To accept the invitation, please click the following link:
+{invite_url}
+
+If you do not wish to join, you may ignore this email or click the link and decline.
+
+Best regards,
+{request.user.get_full_name()} (Chair)
+PaperSetu
+"""
+                        send_mail(mail_subject, mail_body, settings.DEFAULT_FROM_EMAIL, [email])
+                        sent_count += 1
+            message = f'Bulk invitations sent to {sent_count} users.'
+        else:
+            email = request.POST.get('email')
+            name = request.POST.get('name')
+            if not email or not name:
+                message = 'Name and email are required.'
+            else:
+                User = get_user_model()
+                user = User.objects.filter(email=email).first()
+                if user and UserConferenceRole.objects.filter(user=user, conference=conference, role='pc_member').exists():
+                    message = 'User is already a PC member.'
+                elif PCInvite.objects.filter(conference=conference, email=email, status='pending').exists():
+                    message = 'Invitation already sent.'
+                else:
+                    token = get_random_string(48)
+                    invite = PCInvite.objects.create(conference=conference, email=email, name=name, invited_by=request.user, token=token)
+                    invite_url = request.build_absolute_uri(reverse('dashboard:pc_invite_accept', args=[invite.token]))
+                    mail_subject = f"Invitation to join PC for {conference.name}"
+                    mail_body = f"""
+Dear {name},
+
+You have been invited to join the Program Committee (PC) for the conference '{conference.name}'.
+
+To accept the invitation, please click the following link:
+{invite_url}
+
+If you do not wish to join, you may ignore this email or click the link and decline.
+
+Best regards,
+{request.user.get_full_name()} (Chair)
+PaperSetu
+"""
+                    send_mail(mail_subject, mail_body, settings.DEFAULT_FROM_EMAIL, [email])
+                    message = 'Invitation sent.'
+                    mail_preview = {'subject': mail_subject, 'body': mail_body}
+    invites = PCInvite.objects.filter(conference=conference).order_by('-sent_at')
+    context = {'conference': conference, 'message': message, 'mail_preview': mail_preview, 'invites': invites}
+    return render(request, 'dashboard/pc_invite.html', context)
+
+def pc_invite_accept(request, token):
+    invite = get_object_or_404(PCInvite, token=token)
+    if invite.status != 'pending':
+        return render(request, 'dashboard/pc_invite_responded.html', {'invite': invite})
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'accept':
+            # Create user if not exists
+            User = get_user_model()
+            user, created = User.objects.get_or_create(email=invite.email, defaults={'username': invite.email.split('@')[0], 'first_name': invite.name})
+            UserConferenceRole.objects.get_or_create(user=user, conference=invite.conference, role='pc_member')
+            invite.status = 'accepted'
+            invite.accepted_at = timezone.now()
+            invite.save()
+            # Notify chair
+            send_mail(
+                f"PC Invitation Accepted for {invite.conference.name}",
+                f"{invite.name} ({invite.email}) has accepted your PC invitation for {invite.conference.name}.",
+                settings.DEFAULT_FROM_EMAIL,
+                [invite.invited_by.email]
+            )
+            return render(request, 'dashboard/pc_invite_responded.html', {'invite': invite, 'accepted': True})
+        elif action == 'decline':
+            invite.status = 'declined'
+            invite.save()
+            return render(request, 'dashboard/pc_invite_responded.html', {'invite': invite, 'declined': True})
+    context = {'invite': invite}
+    return render(request, 'dashboard/pc_invite_accept.html', context)
+
+@login_required
+def pc_invitations(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    if conference.chair != request.user:
+        return render(request, 'dashboard/forbidden.html', {'message': 'Only the chair can view invitations.'})
+    invitations = PCInvite.objects.filter(conference=conference, status='pending')
+    context = {'conference': conference, 'invitations': invitations}
+    return render(request, 'dashboard/pc_invitations.html', context)
+
+@login_required
+def pc_remove(request, conf_id, user_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    if conference.chair != request.user:
+        return render(request, 'dashboard/forbidden.html', {'message': 'Only the chair can remove PC members.'})
+    UserConferenceRole.objects.filter(conference=conference, user_id=user_id, role='pc_member').delete()
+    return redirect('dashboard:pc_list', conf_id=conf_id) 

@@ -13,10 +13,10 @@ def homepage(request):
     
     user = request.user
     
-    # Get conferences where user has any role (chair, author, reviewer)
+    # Only show conferences where user is chair, pc_member, or author
     user_conferences = Conference.objects.filter(
-        Q(chair=user) |  # User is chair
-        Q(userconferencerole__user=user)  # User has any role
+        Q(chair=user) |
+        Q(userconferencerole__user=user, userconferencerole__role__in=['author', 'pc_member'])
     ).distinct().filter(is_approved=True)
     
     # Add role information to each conference
@@ -25,7 +25,7 @@ def homepage(request):
             user=user, 
             conference=conference
         ).values_list('role', flat=True)
-        if conference.chair == user:
+        if conference.chair == user and 'chair' not in conference.user_roles:
             conference.user_roles = list(conference.user_roles) + ['chair']
     
     context = {

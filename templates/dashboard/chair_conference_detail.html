@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ conference.name }} - Conference Details</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </head>
 <body class="bg-gray-50 min-h-screen">
-    <nav class="bg-white shadow mb-8 border-b border-gray-200">
+    <nav class="bg-white shadow mb-8 border-b border-gray-200 sticky top-0 z-30 w-full">
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
             <div class="text-2xl font-bold text-blue-700">
                 <svg class="w-24 h-auto mr-2 inline" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
@@ -25,6 +26,19 @@
                 <li class="border-r border-gray-300 pr-4"><a href="/home/" class="hover:text-blue-600">Home</a></li>
                 {% if user.is_authenticated %}
                     <li class="border-r border-gray-300 pr-4"><a href="/accounts/logout/">Logout</a></li>
+                    <li class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="px-4 py-2 font-semibold text-blue-700 hover:text-blue-900 focus:outline-none flex items-center">
+                            PC <i class="fas fa-caret-down ml-1"></i>
+                        </button>
+                        <div x-show="open" @click.away="open = false" class="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50" x-cloak>
+                            <a href="{% url 'dashboard:pc_list' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">View PC</a>
+                            <a href="{% url 'dashboard:pc_invitations' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Invitations to PC</a>
+                            <a href="{% url 'dashboard:pc_invite' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Add new PC member</a>
+                            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Send email</a>
+                            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Overview</a>
+                            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Conflicts</a>
+                        </div>
+                    </li>
                     <li class="relative">
                         <button id="profileBtn" class="focus:outline-none">
                             <img src="https://ui-avatars.com/api/?name={{ user.get_full_name|default:user.username }}" alt="Profile" class="w-8 h-8 rounded-full border border-gray-300">
@@ -49,10 +63,26 @@
             <ul class="flex flex-wrap md:flex-nowrap justify-start md:justify-center items-center overflow-x-auto text-sm font-semibold">
                 {% for item in nav_items %}
                     <li class="m-1">
+                        {% if item == 'PC' %}
+                        <div class="relative" x-data="{ open: false }">
+                            <button @click="open = !open" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">
+                                PC <i class="fas fa-caret-down ml-1"></i>
+                            </button>
+                            <div x-show="open" @click.away="open = false" class="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50" x-cloak>
+                                <a href="{% url 'dashboard:pc_list' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">View PC</a>
+                                <a href="{% url 'dashboard:pc_invitations' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Invitations to PC</a>
+                                <a href="{% url 'dashboard:pc_invite' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Add new PC member</a>
+                                <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Send email</a>
+                                <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Overview</a>
+                                <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Conflicts</a>
+                            </div>
+                        </div>
+                        {% else %}
                         <a href="#" class="block px-4 py-2 rounded transition-all duration-150
                             {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">
                             {{ item }}
                         </a>
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>

@@ -100,10 +100,11 @@ def conferences_list(request):
     """List all available conferences that the user can view"""
     search_query = request.GET.get('search', '')
     area_filter = request.GET.get('area', '')
-    
-    # Get all approved conferences
-    conferences = Conference.objects.filter(is_approved=True, status__in=['upcoming', 'live'])
-    
+    # Only show conferences where user is chair, pc_member, or author
+    conferences = Conference.objects.filter(
+        Q(chair=request.user) |
+        Q(userconferencerole__user=request.user, userconferencerole__role__in=['author', 'pc_member'])
+    ).distinct().filter(is_approved=True, status__in=['upcoming', 'live'])
     # Apply search filter
     if search_query:
         conferences = conferences.filter(
@@ -111,31 +112,18 @@ def conferences_list(request):
             Q(acronym__icontains=search_query) |
             Q(description__icontains=search_query)
         )
-    
     # Apply area filter
     if area_filter:
         conferences = conferences.filter(primary_area=area_filter)
-    
-    # Get user's conferences to show their roles
-    user_conferences = Conference.objects.filter(
-        Q(chair=request.user) | Q(userconferencerole__user=request.user)
-    ).distinct()
-    
     # Add user role information
     for conference in conferences:
-        if conference in user_conferences:
-            conference.user_roles = UserConferenceRole.objects.filter(
-                user=request.user, 
-                conference=conference
-            ).values_list('role', flat=True)
-            if conference.chair == request.user:
-                conference.user_roles = list(conference.user_roles) + ['chair']
-        else:
-            conference.user_roles = []
-    
-    # Get area choices for filter
+        conference.user_roles = UserConferenceRole.objects.filter(
+            user=request.user, 
+            conference=conference
+        ).values_list('role', flat=True)
+        if conference.chair == request.user and 'chair' not in conference.user_roles:
+            conference.user_roles = list(conference.user_roles) + ['chair']
     from .models import AREA_CHOICES
-    
     context = {
         'conferences': conferences,
         'search_query': search_query,
@@ -151,24 +139,30 @@ def choose_conference_role(request, conference_id):
     roles = []
     if conference.chair == user:
         roles.append('chair')
-        # Always allow chair to upload as author
-        if 'author' not in roles:
-            roles.append('author')
     user_roles = UserConferenceRole.objects.filter(user=user, conference=conference).values_list('role', flat=True)
     for r in user_roles:
         if r not in roles:
             roles.append(r)
+    # Always show pc_member if user has that role
+    if 'pc_member' in user_roles and 'pc_member' not in roles:
+        roles.append('pc_member')
+    # Always show author role for everyone
+    if 'author' not in roles:
+        roles.append('author')
     role_links = []
     for role in roles:
         if role == 'chair':
             url = reverse('dashboard:chair_conference_detail', args=[conference.id])
             label = 'Chair'
         elif role == 'author':
-            url = reverse('dashboard:dashboard') + f'?view=author&conf_id={conference.id}'
+            url = reverse('conference:author_dashboard', args=[conference.id])
             label = 'Author (Upload Paper)'
         elif role == 'reviewer':
             url = reverse('dashboard:dashboard') + f'?view=reviewer&conf_id={conference.id}'
             label = 'Reviewer'
+        elif role == 'pc_member':
+            url = reverse('dashboard:pc_conference_detail', args=[conference.id])
+            label = 'PC Member'
         else:
             continue
         role_links.append({'role': role, 'url': url, 'label': label})
@@ -177,6 +171,36 @@ def choose_conference_role(request, conference_id):
         'role_links': role_links,
     }
     return render(request, 'conference/choose_role.html', context)
+
+@login_required
+def author_dashboard(request, conference_id):
+    conference = get_object_or_404(Conference, id=conference_id)
+    user = request.user
+    # Get all papers by this user for this conference
+    papers = Paper.objects.filter(conference=conference, author=user)
+    message = ''
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        abstract = request.POST.get('abstract')
+        file = request.FILES.get('file')
+        authors_data = request.POST.getlist('authors[]')
+        if title and file:
+            paper = Paper.objects.create(title=title, abstract=abstract, file=file, author=user, conference=conference)
+            # Add additional authors (excluding the submitting user)
+            for author_str in authors_data:
+                name_email = [a.strip() for a in author_str.split(',')]
+                if len(name_email) == 2:
+                    name, email = name_email
+                    # You can extend this to create a PaperAuthor model if needed
+            UserConferenceRole.objects.get_or_create(user=user, conference=conference, role='author')
+            message = 'Paper submitted successfully!'
+            papers = Paper.objects.filter(conference=conference, author=user)
+    context = {
+        'conference': conference,
+        'papers': papers,
+        'message': message,
+    }
+    return render(request, 'conference/author_dashboard.html', context)
 
 nav_items = [
     "Submissions", "Reviews", "Status", "PC", "Events",

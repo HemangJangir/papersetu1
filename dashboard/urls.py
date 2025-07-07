@@ -12,4 +12,10 @@ urlpatterns = [
     path('notification/<int:notification_id>/mark-read/', views.mark_notification_read, name='mark_notification_read'),
     path('chair/conference/<int:conf_id>/bulk-assign/', views.bulk_assign_papers, name='bulk_assign_papers'),
     path('bulk-assign/', views.bulk_assign_papers, name='bulk_assign_papers'),
+    path('pc/conference/<int:conf_id>/', views.pc_conference_detail, name='pc_conference_detail'),
+    path('chair/conference/<int:conf_id>/pc/', views.pc_list, name='pc_list'),
+    path('chair/conference/<int:conf_id>/pc/invite/', views.pc_invite, name='pc_invite'),
+    path('chair/conference/<int:conf_id>/pc/invitations/', views.pc_invitations, name='pc_invitations'),
+    path('chair/conference/<int:conf_id>/pc/remove/<int:user_id>/', views.pc_remove, name='pc_remove'),
+    path('pc/invite/accept/<str:token>/', views.pc_invite_accept, name='pc_invite_accept'),
 ] 

@@ -70,7 +70,12 @@ class ReviewInvite(models.Model):
 class UserConferenceRole(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     conference = models.ForeignKey(Conference, on_delete=models.CASCADE)
-    role = models.CharField(max_length=10, choices=[('chair', 'Chair'), ('author', 'Author'), ('reviewer', 'Reviewer')])
+    role = models.CharField(max_length=15, choices=[
+        ('chair', 'Chair'),
+        ('author', 'Author'),
+        ('reviewer', 'Reviewer'),
+        ('pc_member', 'PC Member'),
+    ])
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -194,4 +199,24 @@ class Notification(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.recipient.username} - {self.title}" 
+        return f"{self.recipient.username} - {self.title}"
+
+class PCInvite(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('cancelled', 'Cancelled'),
+        ('declined', 'Declined'),
+    ]
+    conference = models.ForeignKey(Conference, on_delete=models.CASCADE, related_name='pc_invites')
+    email = models.EmailField()
+    name = models.CharField(max_length=255, blank=True)
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pc_invites_sent')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    sent_at = models.DateTimeField(auto_now_add=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    token = models.CharField(max_length=64, unique=True)
+
+    def __str__(self):
+        return f"{self.email} invited to {self.conference} ({self.status})" 

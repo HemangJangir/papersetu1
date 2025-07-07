@@ -106,13 +106,9 @@
                                 </div>
                                 <!-- Action Buttons -->
                                 <div class="flex space-x-2">
-                                    {% if conference.chair.id == user.id %}
+                                    {% if conference.chair.id == user.id or 'pc_member' in conference.user_roles or 'author' in conference.user_roles %}
                                         <a href="/conference/{{ conference.id }}/choose-role/" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center py-2 px-4 rounded-lg text-sm font-medium transition-colors">
-                                            <i class="fas fa-cog mr-1"></i>Manage Conference
-                                        </a>
-                                    {% elif conference.user_roles and 'author' in conference.user_roles %}
-                                        <a href="/conference/{{ conference.id }}/submit-paper/" class="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-2 px-4 rounded-lg text-sm font-medium transition-colors">
-                                            <i class="fas fa-file-upload mr-1"></i>Upload Paper
+                                            <i class="fas fa-arrow-right mr-1"></i>Go
                                         </a>
                                     {% endif %}
                                 </div>
