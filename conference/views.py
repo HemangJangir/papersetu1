@@ -9,6 +9,7 @@ from django.http import Http404
 from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from django.urls import reverse
 
 @login_required
 def create_conference(request):
@@ -142,6 +143,40 @@ def conferences_list(request):
         'area_choices': AREA_CHOICES,
     }
     return render(request, 'conference/conferences_list.html', context)
+
+@login_required
+def choose_conference_role(request, conference_id):
+    conference = get_object_or_404(Conference, id=conference_id)
+    user = request.user
+    roles = []
+    if conference.chair == user:
+        roles.append('chair')
+        # Always allow chair to upload as author
+        if 'author' not in roles:
+            roles.append('author')
+    user_roles = UserConferenceRole.objects.filter(user=user, conference=conference).values_list('role', flat=True)
+    for r in user_roles:
+        if r not in roles:
+            roles.append(r)
+    role_links = []
+    for role in roles:
+        if role == 'chair':
+            url = reverse('dashboard:chair_conference_detail', args=[conference.id])
+            label = 'Chair'
+        elif role == 'author':
+            url = reverse('dashboard:dashboard') + f'?view=author&conf_id={conference.id}'
+            label = 'Author (Upload Paper)'
+        elif role == 'reviewer':
+            url = reverse('dashboard:dashboard') + f'?view=reviewer&conf_id={conference.id}'
+            label = 'Reviewer'
+        else:
+            continue
+        role_links.append({'role': role, 'url': url, 'label': label})
+    context = {
+        'conference': conference,
+        'role_links': role_links,
+    }
+    return render(request, 'conference/choose_role.html', context)
 
 nav_items = [
     "Submissions", "Reviews", "Status", "PC", "Events",
