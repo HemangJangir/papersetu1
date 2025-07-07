@@ -1,19 +1,50 @@
 from django.db import models
 from accounts.models import User
 
+AREA_CHOICES = [
+    ('AI', 'Artificial Intelligence'),
+    ('ML', 'Machine Learning'),
+    ('DS', 'Data Science'),
+    ('CV', 'Computer Vision'),
+    ('NLP', 'Natural Language Processing'),
+    ('SE', 'Software Engineering'),
+    ('CN', 'Computer Networks'),
+    ('SEC', 'Cyber Security'),
+    ('HCI', 'Human-Computer Interaction'),
+    ('DB', 'Databases'),
+    ('IOT', 'Internet of Things'),
+    ('BIO', 'Bioinformatics'),
+    ('EDU', 'Education Technology'),
+    ('GRAPH', 'Computer Graphics'),
+    ('OTHER', 'Other'),
+]
+
 class Conference(models.Model):
     name = models.CharField(max_length=255)
-    description = models.TextField()
+    acronym = models.CharField(max_length=50, blank=True)
+    web_page = models.URLField(blank=True)
+    venue = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    country = models.CharField(max_length=100, blank=True)
+    estimated_submissions = models.IntegerField(null=True, blank=True)
     start_date = models.DateField()
     end_date = models.DateField()
+    primary_area = models.CharField(max_length=50, choices=AREA_CHOICES, default='AI')
+    secondary_area = models.CharField(max_length=50, choices=AREA_CHOICES, default='AI')
+    area_notes = models.TextField(blank=True)
+    organizer = models.CharField(max_length=255, blank=True)
+    organizer_web_page = models.URLField(blank=True)
+    contact_phone = models.CharField(max_length=20, blank=True)
+    role = models.CharField(max_length=100, blank=True)
+    is_approved = models.BooleanField(default=False)
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='requested_conferences', null=True, blank=True)
+    description = models.TextField(blank=True)
     chair = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chaired_conferences')
     status = models.CharField(max_length=20, choices=[('upcoming', 'Upcoming'), ('live', 'Live'), ('completed', 'Completed')], default='upcoming')
     invite_link = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    domain = models.CharField(max_length=255, blank=True)
     paper_submission_deadline = models.DateField(null=True, blank=True)
     paper_format = models.CharField(max_length=10, choices=[('pdf', 'PDF'), ('docx', 'DOCX')], default='pdf')
-    registration_fee = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
 
     def __str__(self):
         return self.name

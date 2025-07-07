@@ -4,6 +4,7 @@ from . import views
 app_name = 'conference'
 
 urlpatterns = [
+    path('', views.conferences_list, name='conferences_list'),
     path('create/', views.create_conference, name='create_conference'),
     path('reviewer-volunteer/', views.reviewer_volunteer, name='reviewer_volunteer'),
     path('<int:conference_id>/submit-paper/', views.submit_paper, name='submit_paper'),

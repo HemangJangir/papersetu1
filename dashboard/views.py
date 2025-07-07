@@ -27,19 +27,19 @@ def dashboard(request):
     notifications = Notification.objects.filter(recipient=user, is_read=False)[:10]
 
     # Chair context
-    chaired_confs = Conference.objects.filter(chair=user)
+    chaired_confs = Conference.objects.filter(chair=user, is_approved=True)
     for conf in chaired_confs:
         conf.invite_url = request.build_absolute_uri(f"/conference/join/{conf.invite_link}/")
     chair_notifications = ReviewInvite.objects.filter(conference__chair=user, status='pending')
 
     # Author context
     search_query = request.GET.get('search', '')
-    live_upcoming_confs = Conference.objects.filter(status__in=['live', 'upcoming'])
+    live_upcoming_confs = Conference.objects.filter(status__in=['live', 'upcoming'], is_approved=True)
     if search_query:
         live_upcoming_confs = live_upcoming_confs.filter(
             Q(name__icontains=search_query) | Q(description__icontains=search_query)
         )
-    joined_confs = Conference.objects.filter(userconferencerole__user=user, userconferencerole__role='author')
+    joined_confs = Conference.objects.filter(userconferencerole__user=user, userconferencerole__role='author', is_approved=True)
     submitted_papers = Paper.objects.filter(author=user)
 
     # Reviewer context
@@ -233,8 +233,8 @@ def review_paper(request, paper_id):
 @login_required
 def chair_conference_detail(request, conf_id):
     conference = get_object_or_404(Conference, id=conf_id)
-    # Ensure only the chair can access
-    if conference.chair != request.user:
+    # Ensure only the chair can access and conference is approved
+    if conference.chair != request.user or not conference.is_approved:
         return redirect('dashboard:dashboard')
     
     papers = Paper.objects.filter(conference=conference).select_related('author')
@@ -328,6 +328,12 @@ def chair_conference_detail(request, conf_id):
     
     invite_url = request.build_absolute_uri(f"/conference/join/{conference.invite_link}/")
     
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = request.GET.get('tab', 'Submissions')
+    
     context = {
         'conference': conference,
         'papers': papers,
@@ -339,6 +345,8 @@ def chair_conference_detail(request, conf_id):
         'invite_message': invite_message,
         'invite_url': invite_url,
         'search_query': search_query,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
     }
     return render(request, 'dashboard/chair_conference_detail.html', context)
 
