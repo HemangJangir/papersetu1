@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ conference.name }} - Administration Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Custom toggle switch styles */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #3b82f6;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-white shadow mb-8 border-b border-gray-200 sticky top-0 z-30 w-full">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="text-2xl font-bold text-blue-700">
+                <svg class="w-24 h-auto mr-2 inline" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Paper icon -->
+                    <rect x="5" y="10" width="15" height="20" fill="#1e40af" rx="2"/>
+                    <line x1="8" y1="15" x2="17" y2="15" stroke="white" stroke-width="1"/>
+                    <line x1="8" y1="18" x2="17" y2="18" stroke="white" stroke-width="1"/>
+                    <line x1="8" y1="21" x2="17" y2="21" stroke="white" stroke-width="1"/>
+                    <line x1="8" y1="24" x2="14" y2="24" stroke="white" stroke-width="1"/>
+                    <!-- Text -->
+                    <text x="25" y="25" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#1e40af">PaperSetu</text>
+                </svg>
+            </div>
+            <ul class="flex space-x-6">
+                <li class="border-r border-gray-300 pr-4"><a href="/home/" class="hover:text-blue-600">Home</a></li>
+                {% if user.is_authenticated %}
+                    <li class="border-r border-gray-300 pr-4"><a href="/accounts/logout/">Logout</a></li>
+                    <li class="relative">
+                        <button id="profileBtn" class="focus:outline-none">
+                            <img src="https://ui-avatars.com/api/?name={{ user.get_full_name|default:user.username }}" alt="Profile" class="w-8 h-8 rounded-full border border-gray-300">
+                        </button>
+                        <div id="profileDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg z-50">
+                            <div class="px-4 py-2 border-b border-gray-100">
+                                <div class="font-semibold">{{ user.get_full_name|default:user.username }}</div>
+                                <div class="text-xs text-gray-500">{{ user.email }}</div>
+                            </div>
+                            <a href="/accounts/settings/" class="block px-4 py-2 hover:bg-gray-100">Settings</a>
+                        </div>
+                    </li>
+                {% else %}
+                    <li><a href="/accounts/login/" class="hover:text-blue-600">Login</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+    
+    <main class="container mx-auto px-4">
+        <!-- Conference Navigation Bar -->
+        <nav class="bg-white shadow rounded mb-8 border border-gray-200">
+            <ul class="flex flex-wrap md:flex-nowrap justify-start md:justify-center items-center overflow-x-auto text-sm font-semibold">
+                {% for item in nav_items %}
+                    <li class="m-1">
+                        {% if item == 'Administration' %}
+                            <a href="{% url 'dashboard:conference_administration' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 bg-blue-600 text-white shadow">
+                                {{ item }}
+                            </a>
+                        {% elif item == 'Submissions' %}
+                            <a href="{% url 'dashboard:conference_submissions' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">
+                                {{ item }}
+                            </a>
+                        {% elif item == 'PC' %}
+                        <div class="relative" x-data="{ open: false }">
+                            <button @click="open = !open" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">
+                                PC <i class="fas fa-caret-down ml-1"></i>
+                            </button>
+                            <div x-show="open" @click.away="open = false" class="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50" x-cloak>
+                                <a href="{% url 'dashboard:pc_list' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">View PC</a>
+                                <a href="{% url 'dashboard:pc_invitations' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Invitations to PC</a>
+                                <a href="{% url 'dashboard:pc_invite' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Add new PC member</a>
+                                <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Send email</a>
+                                <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Overview</a>
+                                <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Conflicts</a>
+                            </div>
+                        </div>
+                        {% elif item == 'Conference' %}
+                            <a href="{% url 'dashboard:chair_conference_detail' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">
+                                {{ item }}
+                            </a>
+                        {% else %}
+                        <a href="#" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">
+                            {{ item }}
+                        </a>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </nav>
+
+        <!-- Conference Header -->
+        <section class="bg-white rounded-lg shadow p-6 mb-8">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-3xl font-bold mb-2 text-blue-700">Administration Panel</h1>
+                    <p class="text-gray-600 mb-2">{{ conference.name }} ({{ conference.acronym }})</p>
+                    <p class="text-sm text-gray-500">Configure administrative features for your conference</p>
+                </div>
+                <div class="text-right">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold
+                        {% if conference.status == 'upcoming' %}bg-yellow-100 text-yellow-800
+                        {% elif conference.status == 'live' %}bg-green-100 text-green-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ conference.status|title }}
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Messages -->
+        {% if messages %}
+            <div class="mb-8">
+                {% for message in messages %}
+                    <div class="p-4 rounded-lg mb-4 {% if message.tags == 'success' %}bg-green-100 border border-green-400 text-green-700{% elif message.tags == 'error' %}bg-red-100 border border-red-400 text-red-700{% else %}bg-blue-100 border border-blue-400 text-blue-700{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Administration Panel -->
+        <section class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-900">
+                    <i class="fas fa-cogs text-blue-600 mr-2"></i>
+                    Administration
+                </h2>
+                <p class="text-sm text-gray-600 mt-1">System administration tools and configuration</p>
+            </div>
+            
+            <div class="p-6">
+                <div class="grid gap-2">
+                    {% for item in admin_menu_items %}
+                    <div class="border-l-4 {% if item.highlighted %}border-blue-500 bg-blue-50{% else %}border-gray-200 bg-gray-50{% endif %} hover:bg-blue-50 transition-colors">
+                        {% if item.url == 'dashboard:conference_configuration' or item.url == 'dashboard:registration_application_step1' %}
+                            <a href="{% url item.url conference.id %}" class="block p-4">
+                        {% else %}
+                            <a href="{{ item.url }}" class="block p-4">
+                        {% endif %}
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <i class="{{ item.icon }} {% if item.highlighted %}text-blue-600{% else %}text-gray-600{% endif %} text-lg"></i>
+                                    <div>
+                                        <h3 class="text-base font-medium {% if item.highlighted %}text-blue-900{% else %}text-gray-900{% endif %}">{{ item.name }}</h3>
+                                        <p class="text-sm {% if item.highlighted %}text-blue-700{% else %}text-gray-600{% endif %}">{{ item.description }}</p>
+                                    </div>
+                                </div>
+                                {% if item.highlighted %}
+                                    <i class="fas fa-arrow-right text-blue-600"></i>
+                                {% else %}
+                                    <i class="fas fa-chevron-right text-gray-400"></i>
+                                {% endif %}
+                            </div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Profile dropdown logic
+        const profileBtn = document.getElementById('profileBtn');
+        const profileDropdown = document.getElementById('profileDropdown');
+        if (profileBtn && profileDropdown) {
+            profileBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                profileDropdown.classList.toggle('hidden');
+            });
+            document.addEventListener('click', function() {
+                profileDropdown.classList.add('hidden');
+            });
+        }
+
+    </script>
+</body>
+</html>
