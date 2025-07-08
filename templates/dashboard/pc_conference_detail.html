@@ -45,9 +45,12 @@
         <div class="bg-blue-700">
             <div class="container mx-auto px-4">
                 <ul class="flex space-x-8 py-3">
-                    {% for item in nav_items %}
-                        <li><a href="{{ item.url }}" class="text-white font-semibold hover:underline">{{ item.label }}</a></li>
-                    {% endfor %}
+                    <li><a href="{% url 'dashboard:conference_submissions' conference.id %}" class="text-white font-semibold hover:underline">Submissions</a></li>
+                    <li><a href="#" class="text-white font-semibold hover:underline">Reviews</a></li>
+                    <li><a href="#" class="text-white font-semibold hover:underline">Status</a></li>
+                    <li><a href="#" class="text-white font-semibold hover:underline">Events</a></li>
+                    <li><a href="#" class="text-white font-semibold hover:underline">Conference</a></li>
+                    <li><a href="#" class="text-white font-semibold hover:underline">News</a></li>
                 </ul>
             </div>
         </div>
