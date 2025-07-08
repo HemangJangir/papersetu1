@@ -18,6 +18,83 @@ from conference.forms import (
     RebuttalSettingsForm, DecisionSettingsForm, EmailTemplateForm,
     RegistrationApplicationStepOneForm, RegistrationApplicationStepTwoForm
 )
+from django.views.generic.edit import FormView
+from django.contrib.auth.decorators import user_passes_test
+from django.utils.decorators import method_decorator
+from django.core.files.storage import default_storage
+from django.template.loader import render_to_string
+from django.core.mail import EmailMessage
+import os
+from django import forms
+from django.db import models
+from django.utils.html import strip_tags
+from django.views.decorators.csrf import csrf_exempt
+
+# Email log model for sent emails
+class PCEmailLog(models.Model):
+    conference = models.ForeignKey(Conference, on_delete=models.CASCADE)
+    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='sent_pc_emails')
+    subject = models.CharField(max_length=200)
+    body = models.TextField()
+    recipients = models.TextField()  # Comma-separated emails
+    sent_at = models.DateTimeField(auto_now_add=True)
+    attachment_name = models.CharField(max_length=255, blank=True, null=True)
+    template_used = models.ForeignKey(EmailTemplate, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.subject} to {self.recipients} at {self.sent_at}"
+
+class PCSendEmailForm(forms.Form):
+    RECIPIENT_TYPE_CHOICES = [
+        ('pc', 'PC Members'),
+        ('author', 'Authors'),
+        ('subreviewer', 'Subreviewers'),
+    ]
+    recipient_type = forms.ChoiceField(choices=RECIPIENT_TYPE_CHOICES, widget=forms.RadioSelect(attrs={'class': 'recipient-type-radio'}), required=True)
+    recipients = forms.MultipleChoiceField(choices=[], widget=forms.CheckboxSelectMultiple, required=False)
+    subject = forms.CharField(max_length=200, widget=forms.TextInput(attrs={'class': 'w-full px-4 py-2 border rounded', 'id': 'id_subject'}))
+    body = forms.CharField(widget=forms.Textarea(attrs={'class': 'w-full px-4 py-2 border rounded', 'rows': 8, 'id': 'id_body'}))
+    attachment = forms.FileField(required=False)
+    template = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'id': 'id_template'}))
+    send_test = forms.BooleanField(required=False, label='Send test email to yourself')
+
+    def __init__(self, *args, **kwargs):
+        conference = kwargs.pop('conference', None)
+        recipient_type = None
+        if 'data' in kwargs and kwargs['data']:
+            recipient_type = kwargs['data'].get('recipient_type', 'pc')
+        super().__init__(*args, **kwargs)
+        # Dynamically populate recipients based on recipient_type and conference
+        if conference:
+            self.fields['recipients'].choices = self.get_recipient_choices(conference, recipient_type or 'pc')
+            # Populate template choices if templates exist
+            self.fields['template'].choices = self.get_template_choices(conference)
+
+    def get_recipient_choices(self, conference, recipient_type):
+        if recipient_type == 'author':
+            users = User.objects.filter(userconferencerole__conference=conference, userconferencerole__role='author')
+        elif recipient_type == 'subreviewer':
+            users = User.objects.filter(userconferencerole__conference=conference, userconferencerole__role='subreviewer')
+        else:
+            users = User.objects.filter(userconferencerole__conference=conference, userconferencerole__role='pc_member')
+        return [(u.id, f"{u.get_full_name() or u.username} ({u.email})") for u in users]
+
+    def get_template_choices(self, conference):
+        templates = EmailTemplate.objects.filter(conference=conference)
+        return [('', '--- Select Template ---')] + [(t.id, t.subject) for t in templates]
+
+def render_placeholders(text, user=None, paper=None, conference=None, extra=None):
+    # Replace placeholders in the text
+    context = {
+        'name': user.get_full_name() if user else '',
+        'submission_title': paper.title if paper else '',
+        'deadline': conference.paper_submission_deadline if conference else '',
+        'review_link': extra.get('review_link') if extra else '',
+        # Add more as needed
+    }
+    for key, value in context.items():
+        text = text.replace(f'{{{{{key}}}}}', str(value))
+    return text
 
 @login_required
 def dashboard(request):
@@ -1509,3 +1586,97 @@ def export_analytics_excel(request, conf_id):
         ])
     
     return response
+
+class PCSendEmailView(FormView):
+    template_name = 'chair/pc/send_email.html'
+    form_class = PCSendEmailForm
+    success_url = None  # Will set dynamically
+
+    @method_decorator(login_required)
+    def dispatch(self, request, *args, **kwargs):
+        conf_id = kwargs.get('conf_id')
+        conference = get_object_or_404(Conference, id=conf_id)
+        if conference.chair != request.user:
+            return render(request, 'dashboard/forbidden.html', {'message': 'Only the conference chair can send emails.'})
+        self.conference = conference
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['conference'] = self.conference
+        return kwargs
+
+    def get_success_url(self):
+        return reverse('dashboard:pc_send_email', kwargs={'conf_id': self.conference.id})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['conference'] = self.conference
+        context['email_logs'] = PCEmailLog.objects.filter(conference=self.conference).order_by('-sent_at')[:20]
+        context['email_templates'] = list(EmailTemplate.objects.filter(conference=self.conference).values('id', 'subject', 'body'))
+        # For AJAX: provide recipient list for the selected type
+        form = context.get('form')
+        if form:
+            context['recipients_html'] = render_to_string('chair/pc/recipients_field.html', {'form': form})
+        return context
+
+    def post(self, request, *args, **kwargs):
+        # AJAX recipient filtering: if AJAX and not submitting the form, return only the recipients field
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' and 'recipients' not in request.POST:
+            form = self.get_form_class()(request.POST, conference=self.conference)
+            recipients_html = render_to_string('chair/pc/recipients_field.html', {'form': form})
+            return JsonResponse({'recipients_html': recipients_html})
+        return super().post(request, *args, **kwargs)
+
+# AJAX endpoint for template autofill
+@login_required
+@csrf_exempt
+def get_email_template(request, conf_id):
+    template_id = request.GET.get('template_id')
+    template = EmailTemplate.objects.filter(conference_id=conf_id, id=template_id).first()
+    if template:
+        return JsonResponse({'subject': template.subject, 'body': template.body})
+    return JsonResponse({'subject': '', 'body': ''})
+
+@login_required
+@csrf_exempt
+def get_sample_recipient_data(request, conf_id):
+    recipient_type = request.GET.get('recipient_type', 'pc')
+    recipient_id = request.GET.get('recipient_id')
+    conference = get_object_or_404(Conference, id=conf_id)
+    user = None
+    paper = None
+    if recipient_id:
+        user = User.objects.filter(id=recipient_id).first()
+    else:
+        # Get a sample user for the role
+        if recipient_type == 'author':
+            user = User.objects.filter(userconferencerole__conference=conference, userconferencerole__role='author').first()
+        elif recipient_type == 'subreviewer':
+            user = User.objects.filter(userconferencerole__conference=conference, userconferencerole__role='subreviewer').first()
+        else:
+            user = User.objects.filter(userconferencerole__conference=conference, userconferencerole__role='pc_member').first()
+    if user:
+        # Get a sample paper for the user if author
+        if recipient_type == 'author':
+            paper = Paper.objects.filter(author=user, conference=conference).first()
+        data = {
+            'name': user.get_full_name() or user.username,
+            'email': user.email,
+            'submission_title': paper.title if paper else '',
+            'conference_name': conference.name,
+            'conference_acronym': conference.acronym,
+            'conference_description': conference.description,
+            'deadline': str(conference.paper_submission_deadline) if conference.paper_submission_deadline else '',
+        }
+    else:
+        data = {
+            'name': 'Sample User',
+            'email': 'sample@example.com',
+            'submission_title': 'Sample Paper',
+            'conference_name': conference.name,
+            'conference_acronym': conference.acronym,
+            'conference_description': conference.description,
+            'deadline': str(conference.paper_submission_deadline) if conference.paper_submission_deadline else '',
+        }
+    return JsonResponse(data)

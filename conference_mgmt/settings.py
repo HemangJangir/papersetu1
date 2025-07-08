@@ -1,4 +1,6 @@
 import os
+import certifi
+os.environ['SSL_CERT_FILE'] = certifi.where()
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.

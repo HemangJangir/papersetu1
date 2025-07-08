@@ -59,7 +59,7 @@
                                 <a href="{% url 'dashboard:pc_list' conference.id %}" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">View PC</a>
                                 <a href="{% url 'dashboard:pc_invitations' conference.id %}" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">Invitations to PC</a>
                                 <a href="{% url 'dashboard:pc_invite' conference.id %}" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">Add new PC members</a>
-                                <a href="#" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">Send email</a>
+                                <a href="{% url 'dashboard:pc_send_email' conference.id %}" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">Send email</a>
                                 <a href="#" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">Overview</a>
                                 <a href="#" class="block px-4 py-2 hover:bg-gray-200">Conflicts</a>
                             </div>
