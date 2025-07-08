@@ -26,19 +26,6 @@
                 <li class="border-r border-gray-300 pr-4"><a href="/home/" class="hover:text-blue-600">Home</a></li>
                 {% if user.is_authenticated %}
                     <li class="border-r border-gray-300 pr-4"><a href="/accounts/logout/">Logout</a></li>
-                    <li class="relative" x-data="{ open: false }">
-                        <button @click="open = !open" class="px-4 py-2 font-semibold text-blue-700 hover:text-blue-900 focus:outline-none flex items-center">
-                            PC <i class="fas fa-caret-down ml-1"></i>
-                        </button>
-                        <div x-show="open" @click.away="open = false" class="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50" x-cloak>
-                            <a href="{% url 'dashboard:pc_list' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">View PC</a>
-                            <a href="{% url 'dashboard:pc_invitations' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Invitations to PC</a>
-                            <a href="{% url 'dashboard:pc_invite' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Add new PC member</a>
-                            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Send email</a>
-                            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Overview</a>
-                            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Conflicts</a>
-                        </div>
-                    </li>
                     <li class="relative">
                         <button id="profileBtn" class="focus:outline-none">
                             <img src="https://ui-avatars.com/api/?name={{ user.get_full_name|default:user.username }}" alt="Profile" class="w-8 h-8 rounded-full border border-gray-300">
@@ -64,17 +51,17 @@
                 {% for item in nav_items %}
                     <li class="m-1">
                         {% if item == 'PC' %}
-                        <div class="relative" x-data="{ open: false }">
-                            <button @click="open = !open" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">
+                        <div class="relative" x-data="{ open: false }" style="z-index: 100;">
+                            <button @click="open = !open" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-200 text-gray-900 hover:bg-gray-300 hover:text-black border border-gray-400" style="min-width: 90px;">
                                 PC <i class="fas fa-caret-down ml-1"></i>
                             </button>
-                            <div x-show="open" @click.away="open = false" class="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50" x-cloak>
-                                <a href="{% url 'dashboard:pc_list' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">View PC</a>
-                                <a href="{% url 'dashboard:pc_invitations' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Invitations to PC</a>
-                                <a href="{% url 'dashboard:pc_invite' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Add new PC member</a>
-                                <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Send email</a>
-                                <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Overview</a>
-                                <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Conflicts</a>
+                            <div x-show="open" @click.away="open = false" class="fixed left-auto mt-0 w-60 bg-gray-100 border border-gray-400 rounded-b shadow z-50" x-cloak style="top: calc(60px + 2.5rem); left: auto; right: auto;">
+                                <a href="{% url 'dashboard:pc_list' conference.id %}" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">View PC</a>
+                                <a href="{% url 'dashboard:pc_invitations' conference.id %}" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">Invitations to PC</a>
+                                <a href="{% url 'dashboard:pc_invite' conference.id %}" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">Add new PC members</a>
+                                <a href="#" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">Send email</a>
+                                <a href="#" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">Overview</a>
+                                <a href="#" class="block px-4 py-2 hover:bg-gray-200">Conflicts</a>
                             </div>
                         </div>
                         {% elif item == 'Submissions' %}
