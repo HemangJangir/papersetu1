@@ -18,7 +18,7 @@ from conference.forms import (
     RebuttalSettingsForm, DecisionSettingsForm, EmailTemplateForm,
     RegistrationApplicationStepOneForm, RegistrationApplicationStepTwoForm
 )
-from django.views.generic.edit import FormView
+from django.views.generic.edit import FormView, CreateView
 from django.contrib.auth.decorators import user_passes_test
 from django.utils.decorators import method_decorator
 from django.core.files.storage import default_storage
@@ -29,6 +29,9 @@ from django import forms
 from django.db import models
 from django.utils.html import strip_tags
 from django.views.decorators.csrf import csrf_exempt
+from django.urls import reverse_lazy
+from conference.models import Conference
+from conference.forms import ConferenceForm
 
 # Email log model for sent emails
 class PCEmailLog(models.Model):
@@ -2100,3 +2103,69 @@ def papersetu_placeholder(request, conf_id):
         'active_tab': active_tab,
         'review_dropdown_items': review_dropdown_items,
     })
+
+@login_required
+def roles_overview(request):
+    # Placeholder: show a simple page for now
+    return render(request, 'dashboard/roles_overview.html', {})
+
+@login_required
+def my_conferences(request):
+    # Get all conferences where the user has a role
+    user_roles = UserConferenceRole.objects.filter(user=request.user).select_related('conference')
+    conferences = [role.conference for role in user_roles]
+    return render(request, 'dashboard/my_conferences.html', {'conferences': conferences})
+
+class CreateConferenceView(LoginRequiredMixin, CreateView):
+    model = Conference
+    form_class = ConferenceForm
+    template_name = 'conference/create_conference.html'
+    def get_success_url(self):
+        return reverse('dashboard:chair_conference_detail', args=[self.object.id])
+    def form_valid(self, form):
+        conference = form.save(commit=False)
+        conference.chair = self.request.user
+        conference.save()
+        return super().form_valid(form)
+
+@login_required
+def view_roles(request):
+    roles = UserConferenceRole.objects.filter(user=request.user).select_related('conference')
+    return render(request, 'dashboard/view_roles.html', {'roles': roles})
+
+@login_required
+def publish_with_us(request):
+    return render(request, 'dashboard/publish_with_us.html')
+
+@login_required
+def manage_cfp(request):
+    # Example: Only conferences where user is chair
+    chaired_confs = Conference.objects.filter(chair=request.user)
+    # Placeholder: CFP form/logic would go here
+    return render(request, 'dashboard/manage_cfp.html', {'chaired_confs': chaired_confs})
+
+@login_required
+def view_preprints(request):
+    # Placeholder: Replace with your actual Preprint model/query
+    preprints = []
+    return render(request, 'dashboard/view_preprints.html', {'preprints': preprints})
+
+@login_required
+def view_slides(request):
+    # Placeholder: Replace with your actual Slide model/query
+    slides = []
+    return render(request, 'dashboard/view_slides.html', {'slides': slides})
+
+@login_required
+def read_news(request):
+    # Placeholder: Replace with your actual News model/query
+    news_items = []
+    return render(request, 'dashboard/read_news.html', {'news_items': news_items})
+
+@login_required
+def settings(request):
+    # Placeholder: Add user settings logic here
+    return render(request, 'dashboard/settings.html', {'user': request.user})
+
+def read_terms(request):
+    return render(request, 'dashboard/read_terms.html')
