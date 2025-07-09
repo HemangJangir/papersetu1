@@ -79,7 +79,43 @@
             </ul>
         </div>
     </nav>
+    {% block nav %}
+    <nav class="bg-white shadow rounded mb-8 border border-gray-200 relative">
+        {% if conference %}
+        <ul class="flex flex-wrap md:flex-nowrap justify-start md:justify-center items-center overflow-x-auto text-sm font-semibold">
+            {% for item in nav_items %}
+                <li class="m-1 relative">
+                    {% if item == 'PC' %}
+                    <a href="{% url 'dashboard:pc_list' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">PC</a>
+                    {% elif item == 'Submissions' %}
+                    <a href="{% url 'dashboard:conference_submissions' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Submissions</a>
+                    {% elif item == 'Administration' %}
+                    <a href="{% url 'dashboard:conference_administration' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Administration</a>
+                    {% elif item == 'Conference' %}
+                    <a href="{% url 'dashboard:conference_configuration' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Conference</a>
+                    {% elif item == 'Reviews' %}
+                    <a href="{% url 'dashboard:all_submissions' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Reviews</a>
+                    {% elif item == 'Status' %}
+                    <a href="{% url 'dashboard:status_placeholder' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Status</a>
+                    {% elif item == 'Events' %}
+                    <a href="{% url 'dashboard:events_placeholder' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Events</a>
+                    {% elif item == 'Email' %}
+                    <a href="{% url 'dashboard:email_placeholder' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Email</a>
+                    {% elif item == 'News' %}
+                    <a href="{% url 'dashboard:news_placeholder' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">News</a>
+                    {% elif item == 'papersetu' %}
+                    <a href="{% url 'dashboard:papersetu_placeholder' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">papersetu</a>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-red-600 p-4">No conference selected. Please select a conference to use the navigation.</div>
+        {% endif %}
+    </nav>
+    {% endblock %}
     <main class="container mx-auto px-4">
+        {% block content %}{% endblock %}
         <!-- Success Message -->
         {% if success_message == 'review_submitted' %}
             <div class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">

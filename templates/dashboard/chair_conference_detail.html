@@ -45,50 +45,37 @@
         </div>
     </nav>
     <main class="container mx-auto px-4">
-        <!-- Conference Navigation Bar -->
-        <nav class="bg-white shadow rounded mb-8 border border-gray-200">
+        {% block nav %}
+        <nav class="bg-white shadow rounded mb-8 border border-gray-200 relative">
             <ul class="flex flex-wrap md:flex-nowrap justify-start md:justify-center items-center overflow-x-auto text-sm font-semibold">
                 {% for item in nav_items %}
-                    <li class="m-1">
+                    <li class="m-1 relative">
                         {% if item == 'PC' %}
-                        <div class="relative" x-data="{ open: false }" style="z-index: 100;">
-                            <button @click="open = !open" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-200 text-gray-900 hover:bg-gray-300 hover:text-black border border-gray-400" style="min-width: 90px;">
-                                PC <i class="fas fa-caret-down ml-1"></i>
-                            </button>
-                            <div x-show="open" @click.away="open = false" class="fixed left-auto mt-0 w-60 bg-gray-100 border border-gray-400 rounded-b shadow z-50" x-cloak style="top: calc(60px + 2.5rem); left: auto; right: auto;">
-                                <a href="{% url 'dashboard:pc_list' conference.id %}" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">View PC</a>
-                                <a href="{% url 'dashboard:pc_invitations' conference.id %}" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">Invitations to PC</a>
-                                <a href="{% url 'dashboard:pc_invite' conference.id %}" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">Add new PC members</a>
-                                <a href="{% url 'dashboard:pc_send_email' conference.id %}" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">Send email</a>
-                                <a href="#" class="block px-4 py-2 border-b border-gray-400 hover:bg-gray-200">Overview</a>
-                                <a href="#" class="block px-4 py-2 hover:bg-gray-200">Conflicts</a>
-                            </div>
-                        </div>
+                        <a href="{% url 'dashboard:pc_list' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">PC</a>
                         {% elif item == 'Submissions' %}
-                        <a href="{% url 'dashboard:conference_submissions' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150
-                            {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">
-                            {{ item }}
-                        </a>
+                        <a href="{% url 'dashboard:conference_submissions' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Submissions</a>
                         {% elif item == 'Administration' %}
-                        <a href="{% url 'dashboard:conference_administration' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150
-                            {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">
-                            {{ item }}
-                        </a>
+                        <a href="{% url 'dashboard:conference_administration' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Administration</a>
                         {% elif item == 'Conference' %}
-                        <a href="{% url 'dashboard:conference_configuration' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150
-                            {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">
-                            {{ item }}
-                        </a>
-                        {% else %}
-                        <a href="#" class="block px-4 py-2 rounded transition-all duration-150
-                            {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">
-                            {{ item }}
-                        </a>
+                        <a href="{% url 'dashboard:conference_configuration' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Conference</a>
+                        {% elif item == 'Reviews' %}
+                        <a href="{% url 'dashboard:all_submissions' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Reviews</a>
+                        {% elif item == 'Status' %}
+                        <a href="{% url 'dashboard:status_placeholder' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Status</a>
+                        {% elif item == 'Events' %}
+                        <a href="{% url 'dashboard:events_placeholder' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Events</a>
+                        {% elif item == 'Email' %}
+                        <a href="{% url 'dashboard:email_placeholder' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">Email</a>
+                        {% elif item == 'News' %}
+                        <a href="{% url 'dashboard:news_placeholder' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">News</a>
+                        {% elif item == 'papersetu' %}
+                        <a href="{% url 'dashboard:papersetu_placeholder' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 {% if active_tab == item %}bg-blue-600 text-white shadow{% else %}bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700{% endif %}">papersetu</a>
                         {% endif %}
                     </li>
                 {% endfor %}
             </ul>
         </nav>
+        {% endblock %}
         <!-- Conference Info Section -->
         <section class="bg-white rounded-lg shadow p-8 mb-8">
             <h1 class="text-3xl font-bold mb-4 text-blue-700">Conference Information</h1>

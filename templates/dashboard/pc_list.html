@@ -1,13 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PC Members - {{ conference.acronym|default:conference.name }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex flex-col">
-    <main class="container mx-auto px-4 py-8">
+{% extends 'dashboard/dashboard.html' %}
+{% block content %}
+<div class="bg-white rounded shadow p-6 mb-6">
+  <h1 class="text-2xl font-bold mb-4 text-blue-700">PC Management</h1>
+  <div class="flex flex-wrap gap-4 mb-6">
+    <a href="{% url 'dashboard:pc_list' conference.id %}" class="bg-blue-600 text-white px-4 py-2 rounded">View PC</a>
+    <a href="{% url 'dashboard:pc_invite' conference.id %}" class="bg-blue-600 text-white px-4 py-2 rounded">Invite PC</a>
+    <a href="{% url 'dashboard:pc_invitations' conference.id %}" class="bg-blue-600 text-white px-4 py-2 rounded">PC Invitations</a>
+    <a href="{% url 'dashboard:pc_send_email' conference.id %}" class="bg-blue-600 text-white px-4 py-2 rounded">Send Email</a>
+  </div>
+</div>
         <h1 class="text-2xl font-bold text-blue-700 mb-6">PC Members for {{ conference.acronym|default:conference.name }}</h1>
         <div class="bg-white rounded-xl shadow-lg p-6">
             {% if pc_members %}
@@ -41,5 +42,4 @@
             {% endif %}
         </div>
     </main>
-</body>
-</html> 
+{% endblock %} 

@@ -104,6 +104,7 @@ class UserConferenceRole(models.Model):
         ('author', 'Author'),
         ('reviewer', 'Reviewer'),
         ('pc_member', 'PC Member'),
+        ('subreviewer', 'Subreviewer'),
     ])
     joined_at = models.DateTimeField(auto_now_add=True)
 
@@ -406,3 +407,22 @@ class EmailTemplate(models.Model):
                 'body': '''Dear {author_name},\n\nThank you for your submission to {conference_name}.\n\nPaper Title: {paper_title}\n\nAfter careful review, we regret to inform you that your paper was not selected for acceptance.\n\nWe encourage you to submit to future conferences.\n\nBest regards,\n{conference_name} Program Committee'''
             }
         }
+
+class SubreviewerInvite(models.Model):
+    STATUS_CHOICES = [
+        ('invited', 'Invited'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('cancelled', 'Cancelled'),
+    ]
+    paper = models.ForeignKey(Paper, on_delete=models.CASCADE, related_name='subreviewer_invites')
+    subreviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subreviewer_invites')
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subreviewer_invited_by')
+    email = models.EmailField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='invited')
+    requested_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+    token = models.CharField(max_length=64, unique=True)
+
+    def __str__(self):
+        return f"{self.subreviewer} invited for {self.paper} ({self.status})"

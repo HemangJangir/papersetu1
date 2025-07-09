@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from conference.models import Conference, ReviewerPool, ReviewInvite, UserConferenceRole, Paper, Review, User, Notification, PCInvite, ConferenceAdminSettings, EmailTemplate, RegistrationApplication
+from conference.models import Conference, ReviewerPool, ReviewInvite, UserConferenceRole, Paper, Review, User, Notification, PCInvite, ConferenceAdminSettings, EmailTemplate, RegistrationApplication, SubreviewerInvite
 from django.db.models import Count, Q
 from django.views.decorators.http import require_POST
 from django.http import HttpResponseRedirect, JsonResponse
@@ -213,6 +213,33 @@ def dashboard(request):
         'all_papers_review_stats': all_papers_review_stats,
         'all_chaired_papers': all_chaired_papers,
     }
+    # Add nav bar context for dashboard
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Submissions"
+    # If user has at least one conference, use the first for dropdowns
+    conference = chaired_confs.first() or joined_confs.first() or reviewing_confs.first()
+    review_dropdown_items = []
+    if conference:
+        review_dropdown_items = [
+            {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+            {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+            {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+            {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+            {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+            {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+            {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+            {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+            {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+        ]
+    context.update({
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+        'conference': conference,
+    })
     return render(request, 'dashboard/dashboard.html', context)
 
 @require_POST
@@ -253,67 +280,30 @@ def review_invite_respond(request, invite_id):
 
 @login_required
 def review_paper(request, paper_id):
-    paper = get_object_or_404(Paper, id=paper_id)
-    print(f"DEBUG: Review paper view accessed for paper {paper_id} by user {request.user.username}")
-    
-    # Check if user is an accepted reviewer for this conference
-    is_accepted_reviewer = ReviewInvite.objects.filter(conference=paper.conference, reviewer=request.user, status='accepted').exists()
-    print(f"DEBUG: User {request.user.username} is accepted reviewer: {is_accepted_reviewer}")
-    
-    if not is_accepted_reviewer:
-        print(f"DEBUG: Redirecting - user not an accepted reviewer")
-        return redirect('dashboard:dashboard')
-    
-    # Check if user has already submitted a review with a decision
-    existing_review = Review.objects.filter(paper=paper, reviewer=request.user, decision__in=['accept', 'reject']).first()
-    print(f"DEBUG: Existing review for user {request.user.username}: {existing_review}")
-    
-    if existing_review:
-        print(f"DEBUG: Redirecting - user already submitted a review")
-        return redirect('dashboard:dashboard')
-    
-    if request.method == 'POST':
-        decision = request.POST.get('decision')
-        if decision in ['accept', 'reject']:
-            # Use update_or_create to avoid unique constraint errors
-            review, created = Review.objects.update_or_create(
-                paper=paper,
-                reviewer=request.user,
-                defaults={'decision': decision}
-            )
-            
-            # Update paper status based on all reviews
-            paper.update_status_based_on_reviews()
-            
-            # Create notification for author
-            Notification.objects.create(
-                recipient=paper.author,
-                notification_type='paper_review',
-                title=f'Paper Review Completed',
-                message=f'Your paper "{paper.title}" has been reviewed by {request.user.get_full_name() or request.user.username}. Decision: {decision.title()}.',
-                related_paper=paper,
-                related_conference=paper.conference,
-                related_review=review
-            )
-            
-            # Create notification for chair about the review
-            Notification.objects.create(
-                recipient=paper.conference.chair,
-                notification_type='paper_review',
-                title=f'Review Submitted',
-                message=f'{request.user.get_full_name() or request.user.username} has submitted a review for paper "{paper.title}". Decision: {decision.title()}.',
-                related_paper=paper,
-                related_conference=paper.conference,
-                related_review=review
-            )
-            
-            print(f"DEBUG: Review submitted successfully - {decision}")
-            return redirect(f'/dashboard/?view=reviewer&message=review_submitted')
-    
+    review = get_object_or_404(Review, id=paper_id, reviewer=request.user)
+    conference = review.paper.conference
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Reviews"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
     context = {
-        'paper': paper,
-        'conference': paper.conference,
-        'author': paper.author,
+        'review': review,
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
     }
     return render(request, 'dashboard/review_paper.html', context)
 
@@ -421,6 +411,17 @@ def chair_conference_detail(request, conf_id):
     ]
     active_tab = request.GET.get('tab', 'Submissions')
     
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
     context = {
         'conference': conference,
         'papers': papers,
@@ -434,6 +435,7 @@ def chair_conference_detail(request, conf_id):
         'search_query': search_query,
         'nav_items': nav_items,
         'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
     }
     return render(request, 'dashboard/chair_conference_detail.html', context)
 
@@ -1680,3 +1682,421 @@ def get_sample_recipient_data(request, conf_id):
             'deadline': str(conference.paper_submission_deadline) if conference.paper_submission_deadline else '',
         }
     return JsonResponse(data)
+
+def all_submissions(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Reviews"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    return render(request, 'dashboard/all_submissions.html', {
+        'conf_id': conf_id,
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    })
+
+def assigned_to_me(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Reviews"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    return render(request, 'dashboard/assigned_to_me.html', {
+        'conf_id': conf_id,
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    })
+
+@login_required
+def subreviewers(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    if not (conference.chair == request.user or UserConferenceRole.objects.filter(user=request.user, conference=conference, role='pc_member').exists()):
+        return render(request, 'dashboard/forbidden.html', {'message': 'You do not have permission to manage subreviewers.'})
+
+    search_query = request.GET.get('search', '').strip()
+    papers = Paper.objects.filter(conference=conference)
+    all_users = User.objects.exclude(id=conference.chair.id)
+    if search_query:
+        all_users = all_users.filter(username__icontains=search_query) | all_users.filter(email__icontains=search_query)
+
+    # Handle invite action
+    message = None
+    message_type = None
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'invite':
+            paper_id = request.POST.get('paper_id')
+            user_id = request.POST.get('user_id')
+            email = request.POST.get('email')
+            template_body = request.POST.get('template_body')
+            if paper_id and user_id and email:
+                paper = Paper.objects.get(id=paper_id)
+                subreviewer = User.objects.get(id=user_id)
+                token = get_random_string(48)
+                invite = SubreviewerInvite.objects.create(
+                    paper=paper,
+                    subreviewer=subreviewer,
+                    invited_by=request.user,
+                    email=email,
+                    token=token
+                )
+                # Send email
+                invite_url = request.build_absolute_uri(f"/dashboard/subreviewer-invite/{token}/")
+                body = template_body.replace('{{ invite_url }}', invite_url).replace('{{ paper_title }}', paper.title)
+                send_mail(
+                    subject=f"Invitation to review paper '{paper.title}'",
+                    message=body,
+                    from_email=None,
+                    recipient_list=[email],
+                )
+                message = f"Invitation sent to {subreviewer.get_full_name() or subreviewer.username} for paper '{paper.title}'."
+                message_type = 'success'
+            else:
+                message = "Please select a paper, subreviewer, and provide an email."
+                message_type = 'error'
+
+    # List all invites for this conference
+    invites = SubreviewerInvite.objects.filter(paper__conference=conference).select_related('paper', 'subreviewer', 'invited_by')
+
+    # Add nav bar context for chair dashboard
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Reviews"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    context = {
+        'conference': conference,
+        'papers': papers,
+        'authors': authors,
+        'reviewers': reviewers,
+        'review_invites': review_invites,
+        'available_reviewers': available_reviewers,
+        'assign_message': assign_message,
+        'invite_message': invite_message,
+        'invite_url': invite_url,
+        'search_query': search_query,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    }
+    return render(request, 'dashboard/subreviewers.html', context)
+
+def pool_subreviewers(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Reviews"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    return render(request, 'dashboard/pool_subreviewers.html', {
+        'conf_id': conf_id,
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    })
+
+def by_pc_member(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Reviews"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    return render(request, 'dashboard/by_pc_member.html', {
+        'conf_id': conf_id,
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    })
+
+def by_submission(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Reviews"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    return render(request, 'dashboard/by_submission.html', {
+        'conf_id': conf_id,
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    })
+
+def delete_review(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Reviews"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    return render(request, 'dashboard/delete_review.html', {
+        'conf_id': conf_id,
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    })
+
+def send_to_authors(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Reviews"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    return render(request, 'dashboard/send_to_authors.html', {
+        'conf_id': conf_id,
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    })
+
+def missing_reviews(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Reviews"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    return render(request, 'dashboard/missing_reviews.html', {
+        'conf_id': conf_id,
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    })
+
+def status_placeholder(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Status"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    return render(request, 'dashboard/status_placeholder.html', {
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    })
+
+def events_placeholder(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Events"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    return render(request, 'dashboard/events_placeholder.html', {
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    })
+
+def email_placeholder(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "Email"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    return render(request, 'dashboard/email_placeholder.html', {
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    })
+
+def news_placeholder(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "News"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    return render(request, 'dashboard/news_placeholder.html', {
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    })
+
+def papersetu_placeholder(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    nav_items = [
+        "Submissions", "Reviews", "Status", "PC", "Events",
+        "Email", "Administration", "Conference", "News", "papersetu"
+    ]
+    active_tab = "papersetu"
+    review_dropdown_items = [
+        {'label': 'All submissions', 'url': reverse('dashboard:all_submissions', args=[conference.id])},
+        {'label': 'Assigned to me', 'url': reverse('dashboard:assigned_to_me', args=[conference.id])},
+        {'label': 'Subreviewers', 'url': reverse('dashboard:subreviewers', args=[conference.id])},
+        {'label': 'Pool of subreviewers', 'url': reverse('dashboard:pool_subreviewers', args=[conference.id])},
+        {'label': 'By PC member', 'url': reverse('dashboard:by_pc_member', args=[conference.id])},
+        {'label': 'By submission', 'url': reverse('dashboard:by_submission', args=[conference.id])},
+        {'label': 'Delete', 'url': reverse('dashboard:delete_review', args=[conference.id])},
+        {'label': 'Send to authors', 'url': reverse('dashboard:send_to_authors', args=[conference.id])},
+        {'label': 'Missing reviews', 'url': reverse('dashboard:missing_reviews', args=[conference.id])},
+    ]
+    return render(request, 'dashboard/papersetu_placeholder.html', {
+        'conference': conference,
+        'nav_items': nav_items,
+        'active_tab': active_tab,
+        'review_dropdown_items': review_dropdown_items,
+    })

@@ -63,35 +63,17 @@
                 {% for item in nav_items %}
                     <li class="m-1">
                         {% if item == 'Administration' %}
-                            <a href="{% url 'dashboard:conference_administration' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 bg-blue-600 text-white shadow">
-                                {{ item }}
-                            </a>
+                            <a href="{% url 'dashboard:conference_administration' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 bg-blue-600 text-white shadow">Administration</a>
                         {% elif item == 'Submissions' %}
-                            <a href="{% url 'dashboard:conference_submissions' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">
-                                {{ item }}
-                            </a>
+                            <a href="{% url 'dashboard:conference_submissions' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">Submissions</a>
                         {% elif item == 'PC' %}
-                        <div class="relative" x-data="{ open: false }">
-                            <button @click="open = !open" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">
-                                PC <i class="fas fa-caret-down ml-1"></i>
-                            </button>
-                            <div x-show="open" @click.away="open = false" class="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50" x-cloak>
-                                <a href="{% url 'dashboard:pc_list' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">View PC</a>
-                                <a href="{% url 'dashboard:pc_invitations' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Invitations to PC</a>
-                                <a href="{% url 'dashboard:pc_invite' conference.id %}" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Add new PC member</a>
-                                <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Send email</a>
-                                <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Overview</a>
-                                <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-blue-50">Conflicts</a>
-                            </div>
-                        </div>
+                            <a href="{% url 'dashboard:pc_list' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">PC</a>
+                        {% elif item == 'Reviews' %}
+                            <a href="{% url 'dashboard:all_submissions' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">Reviews</a>
                         {% elif item == 'Conference' %}
-                            <a href="{% url 'dashboard:chair_conference_detail' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">
-                                {{ item }}
-                            </a>
+                            <a href="{% url 'dashboard:chair_conference_detail' conference.id %}" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">Conference</a>
                         {% else %}
-                        <a href="#" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">
-                            {{ item }}
-                        </a>
+                            <a href="#" class="block px-4 py-2 rounded transition-all duration-150 bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700">{{ item }}</a>
                         {% endif %}
                     </li>
                 {% endfor %}
