@@ -24,19 +24,27 @@ def create_conference(request):
             conference.requested_by = request.user
             conference.save()
             UserConferenceRole.objects.create(user=request.user, conference=conference, role='chair')
-            # Send pending approval email to superuser(s)
+            # Send pending approval email to superuser(s) and organiser
             User = get_user_model()
             superusers = User.objects.filter(is_superuser=True)
             superuser_emails = [u.email for u in superusers if u.email]
-            if superuser_emails:
+            organiser_emails = []
+            # Use the conference.contact_email as the organiser's email if provided
+            if conference.contact_email:
+                organiser_emails.append(conference.contact_email)
+            # Also add the request user's email if available
+            if hasattr(request.user, 'email') and request.user.email:
+                organiser_emails.append(request.user.email)
+            # Only include valid emails
+            all_recipients = list(set([e for e in (superuser_emails + organiser_emails) if e and '@' in e]))
+            if all_recipients:
                 send_mail(
                     'Conference Request Pending',
                     f'A new conference request ("{conference.name}") is pending approval.',
                     'admin@example.com',
-                    superuser_emails,
+                    all_recipients,
                 )
-            messages.success(request, 'Conference request submitted and pending admin approval!')
-            return redirect('dashboard:dashboard')
+            return render(request, 'conference/conference_submitted.html', {'conference': conference})
         else:
             # Form is invalid, show errors and stay on the form
             return render(request, 'conference/create_conference.html', {'form': form})

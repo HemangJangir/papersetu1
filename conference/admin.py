@@ -29,14 +29,19 @@ class ConferenceAdmin(admin.ModelAdmin):
         if not conference.is_approved:
             conference.is_approved = True
             conference.save()
-            # Send approval email to organizer
-            if conference.chair.email:
+            # Send approval email to chair and organiser
+            recipients = []
+            if conference.chair.email and '@' in conference.chair.email:
+                recipients.append(conference.chair.email)
+            if hasattr(conference, 'contact_email') and conference.contact_email and '@' in conference.contact_email:
+                recipients.append(conference.contact_email)
+            if recipients:
                 conference_url = request.build_absolute_uri(reverse('dashboard:chair_conference_detail', args=[conference.id]))
                 send_mail(
                     'Conference Approved',
                     f'Your conference "{conference.name}" has been approved! Manage it here: {conference_url}',
                     'admin@example.com',
-                    [conference.chair.email],
+                    recipients,
                 )
         from django.http import HttpResponseRedirect
         return HttpResponseRedirect('/admin/conference/conference/')
@@ -46,14 +51,19 @@ class ConferenceAdmin(admin.ModelAdmin):
             if not conference.is_approved:
                 conference.is_approved = True
                 conference.save()
-                if conference.chair.email:
+                recipients = []
+                if conference.chair.email and '@' in conference.chair.email:
+                    recipients.append(conference.chair.email)
+                if hasattr(conference, 'contact_email') and conference.contact_email and '@' in conference.contact_email:
+                    recipients.append(conference.contact_email)
+                if recipients:
                     from django.urls import reverse
                     conference_url = request.build_absolute_uri(reverse('dashboard:chair_conference_detail', args=[conference.id]))
                     send_mail(
                         'Conference Approved',
                         f'Your conference "{conference.name}" has been approved! Manage it here: {conference_url}',
                         'admin@example.com',
-                        [conference.chair.email],
+                        recipients,
                     )
         self.message_user(request, "Selected conferences have been approved and emails sent.")
     approve_selected_conferences.short_description = "Approve selected conferences"

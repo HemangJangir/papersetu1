@@ -106,6 +106,12 @@ def dashboard(request):
     roles = UserConferenceRole.objects.filter(user=user).values_list('role', flat=True).distinct()
     is_chair = 'chair' in roles
     is_author = 'author' in roles
+    # Chair context
+    chaired_confs = Conference.objects.filter(chair=user, is_approved=True)
+    if is_chair and chaired_confs.exists():
+        # Redirect to the configuration page of the first chaired conference
+        first_conf = chaired_confs.first()
+        return redirect('dashboard:conference_configuration', conf_id=first_conf.id)
     
     # Check if user is a reviewer (has reviewer profile or pending invitations)
     has_reviewer_profile = hasattr(user, 'reviewer_profile')
@@ -115,12 +121,6 @@ def dashboard(request):
 
     # Get notifications
     notifications = Notification.objects.filter(recipient=user, is_read=False)[:10]
-
-    # Chair context
-    chaired_confs = Conference.objects.filter(chair=user, is_approved=True)
-    for conf in chaired_confs:
-        conf.invite_url = request.build_absolute_uri(f"/conference/join/{conf.invite_link}/")
-    chair_notifications = ReviewInvite.objects.filter(conference__chair=user, status='pending')
 
     # Author context
     search_query = request.GET.get('search', '')
