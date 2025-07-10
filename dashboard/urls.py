@@ -62,3 +62,7 @@ urlpatterns = [
     path('settings/', views.settings, name='settings'),
     path('terms/', views.read_terms, name='read_terms'),
 ]
+
+urlpatterns += [
+    path('pc/conference/<int:conf_id>/subreviewers/', views.pc_subreviewers, name='pc_subreviewers'),
+]

@@ -5,7 +5,8 @@ from .forms import ConferenceForm, ReviewerVolunteerForm, PaperSubmissionForm
 from .models import Conference, ReviewerPool, ReviewInvite, UserConferenceRole, Paper, Review
 from accounts.models import User
 from django.utils.crypto import get_random_string
-from django.http import Http404
+from django.http import Http404, FileResponse
+import os
 from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
 from django.db.models import Q
@@ -351,11 +352,12 @@ def subreviewer_review_form(request, invite_id):
         return redirect('conference:subreviewer_dashboard', conference_id=invite.paper.conference.id)
     if request.method == 'POST':
         form = SubreviewerReviewForm(request.POST)
-        if form.is_valid():
+        decision = request.POST.get('decision')
+        if form.is_valid() and decision in ['accept', 'reject']:
             Review.objects.create(
                 paper=invite.paper,
                 reviewer=request.user,
-                decision=None,  # To be set by PC if needed
+                decision=decision,
                 comments=form.cleaned_data['comments'],
                 rating=form.cleaned_data['rating'],
                 confidence=form.cleaned_data['confidence'],
@@ -365,6 +367,24 @@ def subreviewer_review_form(request, invite_id):
     else:
         form = SubreviewerReviewForm()
     return render(request, 'conference/subreviewer_review_form.html', {'form': form, 'invite': invite})
+
+@login_required
+def download_paper(request, paper_id):
+    from conference.models import Paper
+    paper = get_object_or_404(Paper, id=paper_id)
+    # Only allow download if user is assigned as subreviewer or reviewer for this paper
+    user = request.user
+    is_subreviewer = paper.subreviewer_invites.filter(subreviewer=user, status__in=['invited', 'accepted']).exists()
+    is_reviewer = paper.reviews.filter(reviewer=user).exists()
+    if not (is_subreviewer or is_reviewer or paper.author == user or user == paper.conference.chair):
+        raise Http404("You do not have permission to download this paper.")
+    if not paper.file:
+        raise Http404("Paper file not found.")
+    file_path = paper.file.path
+    if not os.path.exists(file_path):
+        raise Http404("File does not exist.")
+    response = FileResponse(open(file_path, 'rb'), as_attachment=True, filename=os.path.basename(file_path))
+    return response
 
 nav_items = [
     "Submissions", "Reviews", "Status", "PC", "Events",

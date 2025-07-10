@@ -12,6 +12,7 @@ urlpatterns = [
     path('<int:conference_id>/choose-role/', views.choose_conference_role, name='choose_conference_role'),
     path('<int:conference_id>/author/', views.author_dashboard, name='author_dashboard'),
     path('<int:conference_id>/subreviewer/', views.subreviewer_dashboard, name='subreviewer_dashboard'),
+    path('paper/<int:paper_id>/download/', views.download_paper, name='download_paper'),
 ]
 
 urlpatterns += [

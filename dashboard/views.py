@@ -532,7 +532,10 @@ def pc_conference_detail(request, conf_id):
     if not is_pc_member:
         return render(request, 'dashboard/forbidden.html', {'message': 'You are not a PC member for this conference.'})
     # Get submissions and reviews for this conference
-    submissions = Paper.objects.filter(conference=conference)
+    submissions = Paper.objects.filter(conference=conference).select_related('author')
+    for paper in submissions:
+        paper.can_review = paper.reviews.filter(reviewer=user).exists()
+        paper.review_id = paper.reviews.filter(reviewer=user).first().id if paper.can_review else None
     reviews = Review.objects.filter(paper__conference=conference)
     nav_items = [
         {'label': 'Submissions', 'url': '#'},
@@ -2209,3 +2212,74 @@ def settings(request):
 
 def read_terms(request):
     return render(request, 'dashboard/read_terms.html')
+
+@login_required
+def pc_submissions(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    user = request.user
+    # Only PC members can access
+    is_pc_member = UserConferenceRole.objects.filter(user=user, conference=conference, role='pc_member').exists()
+    if not is_pc_member:
+        return render(request, 'dashboard/forbidden.html', {'message': 'You are not a PC member for this conference.'})
+    papers = Paper.objects.filter(conference=conference).select_related('author')
+    # For each paper, check if this PC member is assigned as a reviewer
+    for paper in papers:
+        paper.can_review = paper.reviews.filter(reviewer=user).exists()
+        paper.review_id = paper.reviews.filter(reviewer=user).first().id if paper.can_review else None
+    context = {
+        'conference': conference,
+        'papers': papers,
+    }
+    return render(request, 'dashboard/pc_submissions.html', context)
+
+@login_required
+def pc_subreviewers(request, conf_id):
+    conference = get_object_or_404(Conference, id=conf_id)
+    user = request.user
+    # Only PC members can access
+    is_pc_member = UserConferenceRole.objects.filter(user=user, conference=conference, role='pc_member').exists()
+    if not is_pc_member:
+        return render(request, 'dashboard/forbidden.html', {'message': 'You are not a PC member for this conference.'})
+    message = None
+    message_type = None
+    if request.method == 'POST':
+        paper_id = request.POST.get('paper_id')
+        user_id = request.POST.get('user_id')
+        email = request.POST.get('email')
+        if paper_id and user_id and email:
+            paper = Paper.objects.get(id=paper_id)
+            subreviewer = User.objects.get(id=user_id)
+            token = get_random_string(48)
+            invite = SubreviewerInvite.objects.create(
+                paper=paper,
+                subreviewer=subreviewer,
+                invited_by=user,
+                email=email,
+                token=token
+            )
+            UserConferenceRole.objects.get_or_create(user=subreviewer, conference=conference, role='subreviewer')
+            body = f"Dear {subreviewer.get_full_name() or subreviewer.username},\n\nYou have been assigned a paper for review (\"{paper.title}\") in the conference '{conference.name}'. Please log in to your dashboard to accept or reject the request.\n\nBest regards,\n{user.get_full_name() or user.username}\nPC Member"
+            send_mail(
+                subject=f"Paper Review Assignment: '{paper.title}'",
+                message=body,
+                from_email=None,
+                recipient_list=[email],
+            )
+            message = f"Assignment email sent to {subreviewer.get_full_name() or subreviewer.username} for paper '{paper.title}'."
+            message_type = 'success'
+        else:
+            message = "Please select a paper, subreviewer, and provide an email."
+            message_type = 'error'
+    # Only show invites sent by this PC member
+    invites = SubreviewerInvite.objects.filter(paper__conference=conference, invited_by=user).select_related('paper', 'subreviewer')
+    papers = Paper.objects.filter(conference=conference)
+    all_users = User.objects.exclude(id=conference.chair.id)
+    context = {
+        'conference': conference,
+        'papers': papers,
+        'all_users': all_users,
+        'invites': invites,
+        'message': message,
+        'message_type': message_type,
+    }
+    return render(request, 'dashboard/pc_subreviewers.html', context)
