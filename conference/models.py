@@ -199,6 +199,10 @@ class Review(models.Model):
     reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews')
     decision = models.CharField(max_length=10, choices=[('accept', 'Accept'), ('reject', 'Reject')], blank=True, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
+    comments = models.TextField(blank=True)
+    rating = models.IntegerField(null=True, blank=True)
+    confidence = models.IntegerField(null=True, blank=True)
+    remarks = models.TextField(blank=True)
 
     class Meta:
         unique_together = ('paper', 'reviewer')

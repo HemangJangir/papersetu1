@@ -11,4 +11,10 @@ urlpatterns = [
     path('join/<str:invite_link>/', views.join_conference, name='join_conference'),
     path('<int:conference_id>/choose-role/', views.choose_conference_role, name='choose_conference_role'),
     path('<int:conference_id>/author/', views.author_dashboard, name='author_dashboard'),
+    path('<int:conference_id>/subreviewer/', views.subreviewer_dashboard, name='subreviewer_dashboard'),
+]
+
+urlpatterns += [
+    path('subreviewer-invite/<int:invite_id>/answer/', views.subreviewer_answer_request, name='subreviewer_answer_request'),
+    path('subreviewer-invite/<int:invite_id>/review/', views.subreviewer_review_form, name='subreviewer_review_form'),
 ] 

@@ -17,7 +17,7 @@
             <div class="text-gray-500 mb-1">Fee: ₹{{ conference.registration_fee }}</div>
             <div class="text-gray-500 mb-1">Format: {{ conference.paper_format|upper }}</div>
         </div>
-        {% if user.is_authenticated and user|has_conference_role:conference.id:'author' %}
+        {% if is_author %}
             <div class="text-green-600 font-semibold mb-4">You have already joined this conference as an author.</div>
         {% else %}
             <form method="post">

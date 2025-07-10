@@ -10,6 +10,28 @@ from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.urls import reverse
+from django.utils import timezone
+from django import forms
+from conference.models import Review
+
+class SubreviewerReviewForm(forms.Form):
+    RATING_CHOICES = [
+        (3, 'Strong Accept (3)'),
+        (2, 'Accept (2)'),
+        (1, 'Weak Accept (1)'),
+        (0, 'Borderline Paper (0)'),
+    ]
+    CONFIDENCE_CHOICES = [
+        (5, 'Expert'),
+        (4, 'High'),
+        (3, 'Medium'),
+        (2, 'Low'),
+        (1, 'None'),
+    ]
+    rating = forms.ChoiceField(choices=RATING_CHOICES, widget=forms.RadioSelect)
+    comments = forms.CharField(widget=forms.Textarea, required=True)
+    confidence = forms.ChoiceField(choices=CONFIDENCE_CHOICES, widget=forms.RadioSelect)
+    remarks = forms.CharField(widget=forms.Textarea, required=False, label='Remarks for PC Member')
 
 @login_required
 def create_conference(request):
@@ -92,16 +114,49 @@ def submit_paper(request, conference_id):
 
 @login_required
 def join_conference(request, invite_link):
+    from .models import UserConferenceRole
     try:
         conference = Conference.objects.get(invite_link=invite_link)
     except Conference.DoesNotExist:
         raise Http404('Conference not found.')
+    user = request.user
+    # Check if user has any roles in this conference
+    user_roles = list(UserConferenceRole.objects.filter(user=user, conference=conference).values_list('role', flat=True))
+    # If user is chair by FK, add it to roles if not present
+    if conference.chair == user and 'chair' not in user_roles:
+        user_roles.append('chair')
+    is_author = 'author' in user_roles
+    if user_roles:
+        # User has roles, show choose_role page (with all their roles + Author)
+        roles = set(user_roles)
+        roles.add('author')  # Always show Author
+        role_links = []
+        for role in roles:
+            if role == 'chair':
+                url = reverse('dashboard:chair_conference_detail', args=[conference.id])
+                label = 'Chair'
+            elif role == 'author':
+                url = reverse('conference:author_dashboard', args=[conference.id])
+                label = 'Author (Upload Paper)'
+            elif role == 'reviewer':
+                url = reverse('dashboard:dashboard') + f'?view=reviewer&conf_id={conference.id}'
+                label = 'Reviewer'
+            elif role == 'pc_member':
+                url = reverse('dashboard:pc_conference_detail', args=[conference.id])
+                label = 'PC Member'
+            elif role == 'subreviewer':
+                url = reverse('dashboard:dashboard') + f'?view=subreviewer&conf_id={conference.id}'
+                label = 'Subreviewer'
+            else:
+                continue
+            role_links.append({'role': role, 'url': url, 'label': label})
+        context = {'conference': conference, 'role_links': role_links}
+        return render(request, 'conference/choose_role.html', context)
+    # If user has no roles, allow join as author
     if request.method == 'POST':
-        # Add user as author if not already
-        UserConferenceRole.objects.get_or_create(user=request.user, conference=conference, role='author')
-        messages.success(request, f'You have joined the conference "{conference.name}"!')
-        return redirect('dashboard:dashboard')
-    return render(request, 'conference/join_conference.html', {'conference': conference})
+        UserConferenceRole.objects.get_or_create(user=user, conference=conference, role='author')
+        return redirect('conference:author_dashboard', conference_id=conference.id)
+    return render(request, 'conference/join_conference.html', {'conference': conference, 'is_author': is_author})
 
 @login_required
 def conferences_list(request):
@@ -142,6 +197,7 @@ def conferences_list(request):
 
 @login_required
 def choose_conference_role(request, conference_id):
+    from conference.models import SubreviewerInvite
     conference = get_object_or_404(Conference, id=conference_id)
     user = request.user
     roles = []
@@ -157,6 +213,12 @@ def choose_conference_role(request, conference_id):
     # Always show author role for everyone
     if 'author' not in roles:
         roles.append('author')
+    # Show subreviewer role if user has UserConferenceRole or SubreviewerInvite (pending/accepted)
+    has_subreviewer_role = 'subreviewer' in user_roles
+    has_subreviewer_invite = SubreviewerInvite.objects.filter(paper__conference=conference, subreviewer=user, status__in=['invited', 'accepted']).exists()
+    if (not has_subreviewer_role and has_subreviewer_invite) or has_subreviewer_role:
+        if 'subreviewer' not in roles:
+            roles.append('subreviewer')
     role_links = []
     for role in roles:
         if role == 'chair':
@@ -171,6 +233,9 @@ def choose_conference_role(request, conference_id):
         elif role == 'pc_member':
             url = reverse('dashboard:pc_conference_detail', args=[conference.id])
             label = 'PC Member'
+        elif role == 'subreviewer':
+            url = reverse('conference:subreviewer_dashboard', args=[conference.id])
+            label = 'Subreviewer'
         else:
             continue
         role_links.append({'role': role, 'url': url, 'label': label})
@@ -209,6 +274,97 @@ def author_dashboard(request, conference_id):
         'message': message,
     }
     return render(request, 'conference/author_dashboard.html', context)
+
+@login_required
+def subreviewer_dashboard(request, conference_id):
+    from conference.models import SubreviewerInvite, Review
+    conference = get_object_or_404(Conference, id=conference_id)
+    user = request.user
+    invites = SubreviewerInvite.objects.filter(
+        paper__conference=conference,
+        subreviewer=user
+    ).select_related('paper', 'invited_by')
+    assigned_papers = []
+    for invite in invites:
+        review_exists = Review.objects.filter(paper=invite.paper, reviewer=user).exists()
+        status = invite.status
+        can_answer = status == 'invited'
+        can_review = status == 'accepted' and not review_exists
+        review_status = None
+        if status == 'accepted' and not review_exists:
+            review_status = 'Incomplete'
+        elif status == 'accepted' and review_exists:
+            review_status = 'Completed'
+        assigned_papers.append({
+            'paper': invite.paper,
+            'invite': invite,
+            'status': status,
+            'can_answer': can_answer,
+            'can_review': can_review,
+            'review_status': review_status,
+        })
+    nav_tabs = [
+        {'label': 'Review Requests', 'active': True},
+        {'label': 'Conference', 'active': False},
+        {'label': 'News', 'active': False},
+        {'label': 'Paper Setup', 'active': False},
+    ]
+    context = {
+        'conference': conference,
+        'assigned_papers': assigned_papers,
+        'nav_tabs': nav_tabs,
+    }
+    return render(request, 'conference/subreviewer_dashboard.html', context)
+
+@login_required
+def subreviewer_answer_request(request, invite_id):
+    from conference.models import SubreviewerInvite
+    invite = get_object_or_404(SubreviewerInvite, id=invite_id, subreviewer=request.user)
+    if invite.status != 'invited':
+        return redirect('conference:subreviewer_dashboard', conference_id=invite.paper.conference.id)
+    if request.method == 'POST':
+        decision = request.POST.get('decision')
+        if decision in ['accepted', 'declined']:
+            invite.status = decision
+            invite.responded_at = timezone.now()
+            invite.save()
+            # Send email to assigner
+            assigner = invite.invited_by
+            subject = f"Subreviewer Response for '{invite.paper.title}'"
+            message = f"{request.user.get_full_name() or request.user.username} has {decision} the request to review the paper '{invite.paper.title}' for {invite.paper.conference.name}."
+            send_mail(subject, message, None, [assigner.email])
+            if decision == 'accepted':
+                # Redirect to review form (to be implemented)
+                return redirect('conference:subreviewer_review_form', invite_id=invite.id)
+            else:
+                return redirect('conference:subreviewer_dashboard', conference_id=invite.paper.conference.id)
+    return render(request, 'conference/subreviewer_answer_request.html', {'invite': invite})
+
+@login_required
+def subreviewer_review_form(request, invite_id):
+    from conference.models import SubreviewerInvite, Review
+    invite = get_object_or_404(SubreviewerInvite, id=invite_id, subreviewer=request.user)
+    if invite.status != 'accepted':
+        return redirect('conference:subreviewer_dashboard', conference_id=invite.paper.conference.id)
+    # Prevent duplicate reviews
+    if Review.objects.filter(paper=invite.paper, reviewer=request.user).exists():
+        return redirect('conference:subreviewer_dashboard', conference_id=invite.paper.conference.id)
+    if request.method == 'POST':
+        form = SubreviewerReviewForm(request.POST)
+        if form.is_valid():
+            Review.objects.create(
+                paper=invite.paper,
+                reviewer=request.user,
+                decision=None,  # To be set by PC if needed
+                comments=form.cleaned_data['comments'],
+                rating=form.cleaned_data['rating'],
+                confidence=form.cleaned_data['confidence'],
+                remarks=form.cleaned_data['remarks'],
+            )
+            return redirect('conference:subreviewer_dashboard', conference_id=invite.paper.conference.id)
+    else:
+        form = SubreviewerReviewForm()
+    return render(request, 'conference/subreviewer_review_form.html', {'form': form, 'invite': invite})
 
 nav_items = [
     "Submissions", "Reviews", "Status", "PC", "Events",

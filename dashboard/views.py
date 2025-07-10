@@ -1771,16 +1771,17 @@ def subreviewers(request, conf_id):
                     email=email,
                     token=token
                 )
-                # Send email
-                invite_url = request.build_absolute_uri(f"/dashboard/subreviewer-invite/{token}/")
-                body = template_body.replace('{{ invite_url }}', invite_url).replace('{{ paper_title }}', paper.title)
+                # Ensure subreviewer role exists for this user/conference
+                UserConferenceRole.objects.get_or_create(user=subreviewer, conference=conference, role='subreviewer')
+                # Send assignment email (no invite link)
+                body = f"Dear {subreviewer.get_full_name() or subreviewer.username},\n\nYou have been assigned a paper for review (\"{paper.title}\") in the conference '{conference.name}'. Please log in to your dashboard to accept or reject the request.\n\nBest regards,\n{request.user.get_full_name() or request.user.username}\nConference Chair/PC Member"
                 send_mail(
-                    subject=f"Invitation to review paper '{paper.title}'",
+                    subject=f"Paper Review Assignment: '{paper.title}'",
                     message=body,
                     from_email=None,
                     recipient_list=[email],
                 )
-                message = f"Invitation sent to {subreviewer.get_full_name() or subreviewer.username} for paper '{paper.title}'."
+                message = f"Assignment email sent to {subreviewer.get_full_name() or subreviewer.username} for paper '{paper.title}'."
                 message_type = 'success'
             else:
                 message = "Please select a paper, subreviewer, and provide an email."
@@ -1788,6 +1789,40 @@ def subreviewers(request, conf_id):
 
     # List all invites for this conference
     invites = SubreviewerInvite.objects.filter(paper__conference=conference).select_related('paper', 'subreviewer', 'invited_by')
+
+    # Get authors for this conference
+    authors = User.objects.filter(papers__conference=conference).distinct()
+    
+    # Get reviewers for this conference
+    reviewers = User.objects.filter(reviews__paper__conference=conference).distinct()
+    
+    # Get review invites for this conference
+    review_invites = ReviewInvite.objects.filter(conference=conference)
+    
+    # Get available reviewers (users who can be invited as subreviewers)
+    available_reviewers = User.objects.exclude(
+        id__in=UserConferenceRole.objects.filter(conference=conference).values_list('user_id', flat=True)
+    ).exclude(id=conference.chair.id)
+    
+    # Get all users for the dropdown (excluding chair)
+    all_users = User.objects.exclude(id=conference.chair.id)
+    
+    # Initialize message variables
+    assign_message = None
+    invite_message = message  # Use the message from the POST handling above
+    invite_url = None
+    
+    # Default template for subreviewer invitation
+    default_template = f"""Dear {{ subreviewer_name }},
+
+You have been invited to review the paper "{{ paper_title }}" for {conference.name}.
+
+Please click the following link to accept or decline this invitation:
+{{ invite_url }}
+
+Best regards,
+{conference.chair.get_full_name() or conference.chair.username}
+Conference Chair"""
 
     # Add nav bar context for chair dashboard
     nav_items = [
@@ -1820,6 +1855,11 @@ def subreviewers(request, conf_id):
         'nav_items': nav_items,
         'active_tab': active_tab,
         'review_dropdown_items': review_dropdown_items,
+        'invites': invites,  # Add the invites to context
+        'message': message,  # Add the message to context
+        'message_type': message_type,  # Add the message type to context
+        'all_users': all_users,  # Add all users for dropdown
+        'default_template': default_template,  # Add default template
     }
     return render(request, 'dashboard/subreviewers.html', context)
 
