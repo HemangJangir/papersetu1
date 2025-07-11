@@ -52,19 +52,19 @@ class Conference(models.Model):
     theme_domain = models.CharField(max_length=255, blank=True, help_text="Conference theme or domain")
     
     # Submission Settings
-    blind_review = models.BooleanField(default=True, help_text="Enable blind review process")
-    abstract_required = models.BooleanField(default=True, help_text="Require abstract for submissions")
-    multiple_authors_allowed = models.BooleanField(default=True, help_text="Allow multiple authors per paper")
+    blind_review = models.BooleanField(default=True)
+    abstract_required = models.BooleanField(default=True)
+    multiple_authors_allowed = models.BooleanField(default=True)
     submission_deadline = models.DateTimeField(null=True, blank=True, help_text="Final submission deadline")
-    max_paper_length = models.IntegerField(default=10, help_text="Maximum paper length in pages")
-    allow_supplementary = models.BooleanField(default=False, help_text="Allow supplementary materials")
+    max_paper_length = models.IntegerField(default=10)
+    allow_supplementary = models.BooleanField(default=False)
     
     # Reviewing Settings
-    reviewers_per_paper = models.IntegerField(default=3, help_text="Number of reviewers assigned per paper")
+    reviewers_per_paper = models.IntegerField(default=3)
     review_deadline = models.DateTimeField(null=True, blank=True, help_text="Review submission deadline")
     paper_bidding_enabled = models.BooleanField(default=False, help_text="Enable paper bidding for reviewers")
-    review_form_enabled = models.BooleanField(default=True, help_text="Use structured review forms")
-    confidence_scores_enabled = models.BooleanField(default=True, help_text="Enable reviewer confidence scores")
+    review_form_enabled = models.BooleanField(default=True)
+    confidence_scores_enabled = models.BooleanField(default=True)
     
     # Rebuttal Settings
     allow_rebuttal_phase = models.BooleanField(default=False, help_text="Enable author rebuttal phase")
@@ -123,6 +123,7 @@ class Paper(models.Model):
     submitted_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=[('submitted', 'Submitted'), ('accepted', 'Accepted'), ('rejected', 'Rejected')], default='submitted')
     is_final_list = models.BooleanField(default=False, help_text="Mark if this paper is included in the final endorsed list")
+    keywords = models.CharField(max_length=255, blank=True, help_text="Comma-separated keywords")
 
     def __str__(self):
         return self.title
@@ -430,3 +431,16 @@ class SubreviewerInvite(models.Model):
 
     def __str__(self):
         return f"{self.subreviewer} invited for {self.paper} ({self.status})"
+
+class Author(models.Model):
+    paper = models.ForeignKey('Paper', on_delete=models.CASCADE, related_name='authors')
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    email = models.EmailField()
+    country_region = models.CharField(max_length=100)
+    affiliation = models.CharField(max_length=255)
+    web_page = models.URLField(blank=True)
+    is_corresponding = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} ({'Corresponding' if self.is_corresponding else 'Author'})"

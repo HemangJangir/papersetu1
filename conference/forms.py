@@ -1,5 +1,5 @@
 from django import forms
-from .models import Conference, ReviewerPool, Paper, EmailTemplate, RegistrationApplication, AREA_CHOICES
+from .models import Conference, ReviewerPool, Paper, EmailTemplate, RegistrationApplication, AREA_CHOICES, Author
 
 class ConferenceForm(forms.ModelForm):
     primary_area = forms.ChoiceField(choices=AREA_CHOICES)
@@ -24,10 +24,25 @@ class ReviewerVolunteerForm(forms.ModelForm):
         model = ReviewerPool
         fields = ['first_name', 'last_name', 'expertise', 'bio']
 
+class AuthorForm(forms.ModelForm):
+    class Meta:
+        model = Author
+        fields = [
+            'first_name', 'last_name', 'email', 'country_region', 'affiliation', 'web_page', 'is_corresponding'
+        ]
+        widgets = {
+            'is_corresponding': forms.CheckboxInput(attrs={'class': 'corresponding-checkbox'}),
+            'web_page': forms.URLInput(attrs={'placeholder': 'https://example.com'}),
+        }
+
 class PaperSubmissionForm(forms.ModelForm):
+    keywords = forms.CharField(required=True, help_text='Comma-separated keywords')
     class Meta:
         model = Paper
         fields = ['title', 'abstract', 'file']
+        widgets = {
+            'abstract': forms.Textarea(attrs={'rows': 3}),
+        }
 
 class ConferenceInfoForm(forms.ModelForm):
     """Form for basic conference information settings."""

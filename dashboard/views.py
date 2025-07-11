@@ -2157,7 +2157,13 @@ def my_conferences(request):
     # Get all conferences where the user has a role
     user_roles = UserConferenceRole.objects.filter(user=request.user).select_related('conference')
     conferences = [role.conference for role in user_roles]
-    return render(request, 'dashboard/my_conferences.html', {'conferences': conferences})
+    # Also include conferences created by the user that are pending approval (if not already in the list)
+    pending_confs = list(Conference.objects.filter(chair=request.user, status='pending'))
+    # Merge, avoiding duplicates
+    all_confs = {conf.id: conf for conf in conferences}
+    for conf in pending_confs:
+        all_confs[conf.id] = conf
+    return render(request, 'dashboard/my_conferences.html', {'conferences': all_confs.values()})
 
 class CreateConferenceView(LoginRequiredMixin, CreateView):
     model = Conference

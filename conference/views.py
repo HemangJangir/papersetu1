@@ -248,31 +248,56 @@ def choose_conference_role(request, conference_id):
 
 @login_required
 def author_dashboard(request, conference_id):
+    from .forms import AuthorForm, PaperSubmissionForm
+    from .models import Author
     conference = get_object_or_404(Conference, id=conference_id)
     user = request.user
-    # Get all papers by this user for this conference
     papers = Paper.objects.filter(conference=conference, author=user)
     message = ''
     if request.method == 'POST':
-        title = request.POST.get('title')
-        abstract = request.POST.get('abstract')
-        file = request.FILES.get('file')
-        authors_data = request.POST.getlist('authors[]')
-        if title and file:
-            paper = Paper.objects.create(title=title, abstract=abstract, file=file, author=user, conference=conference)
-            # Add additional authors (excluding the submitting user)
-            for author_str in authors_data:
-                name_email = [a.strip() for a in author_str.split(',')]
-                if len(name_email) == 2:
-                    name, email = name_email
-                    # You can extend this to create a PaperAuthor model if needed
+        paper_form = PaperSubmissionForm(request.POST, request.FILES)
+        authors_data = request.POST.getlist('authors_json')
+        import json
+        authors = json.loads(authors_data[0]) if authors_data else []
+        if paper_form.is_valid() and authors:
+            paper = paper_form.save(commit=False)
+            paper.author = user
+            paper.conference = conference
+            paper.save()
+            # Save authors
+            corresponding_found = False
+            for idx, author in enumerate(authors):
+                is_corr = bool(author.get('is_corresponding'))
+                if is_corr:
+                    if corresponding_found:
+                        is_corr = False  # Only one corresponding author
+                    else:
+                        corresponding_found = True
+                Author.objects.create(
+                    paper=paper,
+                    first_name=author.get('first_name', ''),
+                    last_name=author.get('last_name', ''),
+                    email=author.get('email', ''),
+                    country_region=author.get('country_region', ''),
+                    affiliation=author.get('affiliation', ''),
+                    web_page=author.get('web_page', ''),
+                    is_corresponding=is_corr
+                )
+            # Save keywords as a comma-separated string in Paper (add a keywords field if needed)
+            paper.keywords = paper_form.cleaned_data['keywords']
+            paper.save()
             UserConferenceRole.objects.get_or_create(user=user, conference=conference, role='author')
             message = 'Paper submitted successfully!'
             papers = Paper.objects.filter(conference=conference, author=user)
+        else:
+            message = 'Please fill all required fields and add at least one author.'
+    else:
+        paper_form = PaperSubmissionForm()
     context = {
         'conference': conference,
         'papers': papers,
         'message': message,
+        'paper_form': paper_form,
     }
     return render(request, 'conference/author_dashboard.html', context)
 

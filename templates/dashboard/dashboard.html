@@ -209,6 +209,9 @@
                                     <p class="text-gray-600 mt-1">{{ paper.abstract|truncatewords:30 }}</p>
                                     <div class="text-sm text-gray-500 mt-2">
                                         <span class="font-semibold">Conference:</span> {{ paper.conference.name }}
+                                        {% if not paper.conference.is_approved %}
+                                            <span class="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 text-xs font-semibold">Not Approved</span>
+                                        {% endif %}
                                     </div>
                                     <div class="text-sm text-gray-500">
                                         <span class="font-semibold">Status:</span> 
@@ -266,7 +269,11 @@
                             {% for paper in submitted_papers %}
                                 <tr>
                                     <td class="px-4 py-4 text-sm font-medium text-gray-900">{{ paper.title }}</td>
-                                    <td class="px-4 py-4 text-sm text-gray-500">{{ paper.conference.name }}</td>
+                                    <td class="px-4 py-4 text-sm text-gray-500">{{ paper.conference.name }}
+                                        {% if not paper.conference.is_approved %}
+                                            <span class="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 text-xs font-semibold">Not Approved</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{ paper.submitted_at|date:'Y-m-d' }}</td>
                                     <td class="px-4 py-4 text-sm text-gray-500">
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -422,7 +429,11 @@
                             {% for paper in assigned_papers %}
                                 <tr>
                                     <td class="px-4 py-4 text-sm font-medium text-gray-900">{{ paper.title }}</td>
-                                    <td class="px-4 py-4 text-sm text-gray-500">{{ paper.conference.name }}</td>
+                                    <td class="px-4 py-4 text-sm text-gray-500">{{ paper.conference.name }}
+                                        {% if not paper.conference.is_approved %}
+                                            <span class="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 text-xs font-semibold">Not Approved</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="px-4 py-4 whitespace-nowrap">
                                         {% if paper.status == 'submitted' %}
                                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Submitted</span>
